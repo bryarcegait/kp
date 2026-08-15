@@ -26,6 +26,18 @@ function sameDatabase(sourceUrl: string, targetUrl: string) {
   );
 }
 
+async function clearTargetDatabase(target: PrismaClient) {
+  await target.dailyCashAdjustment.deleteMany();
+  await target.dailyCashSummary.deleteMany();
+  await target.dailyPosReport.deleteMany();
+  await target.employeeSchedule.deleteMany();
+  await target.expense.deleteMany();
+  await target.rolePermission.deleteMany();
+  await target.user.deleteMany();
+  await target.role.deleteMany();
+  await target.permission.deleteMany();
+}
+
 async function main() {
   const sourceUrl = requireUrl(
     "LOCAL_DATABASE_URL",
@@ -41,6 +53,10 @@ async function main() {
   const target = createClient(targetUrl);
 
   try {
+    if (process.env.CLEAR_TIDB_TARGET === "true") {
+      await clearTargetDatabase(target);
+    }
+
     const [
       roles,
       permissions,
