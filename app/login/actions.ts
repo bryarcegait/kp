@@ -15,11 +15,16 @@ export async function authenticate(
     });
   } catch (error) {
     if (error instanceof AuthError) {
+      console.error("Login failed", {
+        type: error.type,
+        cause: error.cause?.err?.message,
+      });
+
       switch (error.type) {
         case "CredentialsSignin":
           return "Invalid username or password.";
         default:
-          return "Something went wrong. Please try again.";
+          return "Login server error. Please check Vercel environment variables.";
       }
     }
     throw error;
