@@ -81,6 +81,10 @@ function formatFullDate(dateKey: string) {
   }).format(new Date(`${dateKey}T00:00:00`));
 }
 
+function sortEmployees(employees: ScheduledEmployee[]) {
+  return [...employees].sort((a, b) => a.fullName.localeCompare(b.fullName));
+}
+
 export function UserScheduleCalendar({
   month,
   currentUser,
@@ -93,12 +97,13 @@ export function UserScheduleCalendar({
   const days = useMemo(() => buildCalendarDays(month), [month]);
   const today = formatInputDate(new Date());
   const [localSchedule, setLocalSchedule] = useState(scheduleByDate);
-  const [savingDate, setSavingDate] = useState<string | null>(null);
+  const [savingDates, setSavingDates] = useState<Set<string>>(new Set());
   const [lastResult, setLastResult] = useState<{
     date: string;
     status: "added" | "removed";
   } | null>(null);
   const [animationKey, setAnimationKey] = useState(0);
+  const isSavingAny = savingDates.size > 0;
 
   useEffect(() => {
     if (!lastResult) return;
@@ -110,33 +115,20 @@ export function UserScheduleCalendar({
     return () => window.clearTimeout(timeout);
   }, [lastResult]);
 
-  async function handleToggle(date: string) {
-    if (savingDate) return;
-
-    setSavingDate(date);
-    const result = await toggleMyScheduleDate(date);
-    setSavingDate(null);
-
-    if (result.error) {
-      toast.error(result.error);
-      return;
-    }
-
-    if (!result.status) {
-      toast.error("Unable to update schedule.");
-      return;
-    }
-
-    const user = result.user ?? currentUser;
+  function setDayUserStatus(
+    date: string,
+    status: "added" | "removed",
+    user: ScheduledEmployee
+  ) {
     setLocalSchedule((current) => {
       const employees = current[date] ?? [];
       const nextEmployees =
-        result.status === "added"
+        status === "added"
           ? employees.some((employee) => employee.id === user.id)
-            ? employees
-            : [...employees, user].sort((a, b) =>
-                a.fullName.localeCompare(b.fullName)
+            ? employees.map((employee) =>
+                employee.id === user.id ? user : employee
               )
+            : sortEmployees([...employees, user])
           : employees.filter((employee) => employee.id !== user.id);
 
       return {
@@ -144,6 +136,46 @@ export function UserScheduleCalendar({
         [date]: nextEmployees,
       };
     });
+  }
+
+  async function handleToggle(date: string) {
+    if (savingDates.has(date)) return;
+
+    const previousEmployees = localSchedule[date] ?? [];
+    const wasScheduled = previousEmployees.some(
+      (employee) => employee.id === currentUser.id
+    );
+    const optimisticStatus = wasScheduled ? "removed" : "added";
+
+    setSavingDates((current) => new Set(current).add(date));
+    setDayUserStatus(date, optimisticStatus, currentUser);
+    const result = await toggleMyScheduleDate(date);
+    setSavingDates((current) => {
+      const next = new Set(current);
+      next.delete(date);
+      return next;
+    });
+
+    if (result.error) {
+      setLocalSchedule((current) => ({
+        ...current,
+        [date]: previousEmployees,
+      }));
+      toast.error(result.error);
+      return;
+    }
+
+    if (!result.status) {
+      setLocalSchedule((current) => ({
+        ...current,
+        [date]: previousEmployees,
+      }));
+      toast.error("Unable to update schedule.");
+      return;
+    }
+
+    const user = result.user ?? currentUser;
+    setDayUserStatus(date, result.status, user);
     setAnimationKey((current) => current + 1);
     setLastResult({ date, status: result.status });
     toast.success(
@@ -179,13 +211,18 @@ export function UserScheduleCalendar({
             </Button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="default">
             <CheckCircle2 className="size-3" /> My schedule
           </Badge>
           <Badge variant="outline">
             <UsersRound className="size-3" /> Coemployees
           </Badge>
+          {isSavingAny ? (
+            <Badge variant="secondary">
+              <Loader2 className="size-3 animate-spin" /> Saving...
+            </Badge>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent>
@@ -204,7 +241,7 @@ export function UserScheduleCalendar({
                 const isMine = employees.some(
                   (employee) => employee.id === currentUser.id
                 );
-                const isSaving = savingDate === day.key;
+                const isSaving = savingDates.has(day.key);
                 const isAnimated = lastResult?.date === day.key;
                 const isWarning = employees.length > 0 && employees.length < 5;
 
@@ -212,7 +249,7 @@ export function UserScheduleCalendar({
                   <button
                     key={`${day.key}-${isAnimated ? animationKey : "idle"}`}
                     type="button"
-                    disabled={Boolean(savingDate)}
+                    disabled={isSaving}
                     onClick={() => handleToggle(day.key)}
                     aria-label={`${formatFullDate(day.key)}, ${isMine ? "remove" : "add"} my schedule`}
                     className={[
@@ -244,6 +281,13 @@ export function UserScheduleCalendar({
                         {employees.length}
                       </div>
                     </div>
+
+                    {isSaving ? (
+                      <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
+                        <Loader2 className="size-3 animate-spin" />
+                        Saving
+                      </span>
+                    ) : null}
 
                     <div className="mt-3 flex flex-1 flex-col gap-1.5">
                       {employees.map((employee) => (
