@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("http://localhost:3001"),
   title: "Kanto't Pakpakan | Restaurant System",
   description: "Management system for Kanto't Pakpakan",
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.png",
     apple: "/apple-icon.png",
