@@ -28,6 +28,8 @@ type CalendarDay = {
   inMonth: boolean;
 };
 
+type ScheduleActionStatus = "added" | "removed";
+
 function formatInputDate(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -97,13 +99,21 @@ export function UserScheduleCalendar({
   const days = useMemo(() => buildCalendarDays(month), [month]);
   const today = formatInputDate(new Date());
   const [localSchedule, setLocalSchedule] = useState(scheduleByDate);
-  const [savingDates, setSavingDates] = useState<Set<string>>(new Set());
+  const [pendingActions, setPendingActions] = useState<
+    Record<string, ScheduleActionStatus>
+  >({});
   const [lastResult, setLastResult] = useState<{
     date: string;
-    status: "added" | "removed";
+    status: ScheduleActionStatus;
   } | null>(null);
   const [animationKey, setAnimationKey] = useState(0);
-  const isSavingAny = savingDates.size > 0;
+  const pendingStatuses = Object.values(pendingActions);
+  const pendingAddCount = pendingStatuses.filter(
+    (status) => status === "added"
+  ).length;
+  const pendingRemoveCount = pendingStatuses.filter(
+    (status) => status === "removed"
+  ).length;
 
   useEffect(() => {
     if (!lastResult) return;
@@ -117,7 +127,7 @@ export function UserScheduleCalendar({
 
   function setDayUserStatus(
     date: string,
-    status: "added" | "removed",
+    status: ScheduleActionStatus,
     user: ScheduledEmployee
   ) {
     setLocalSchedule((current) => {
@@ -144,7 +154,7 @@ export function UserScheduleCalendar({
       return;
     }
 
-    if (savingDates.has(date)) return;
+    if (pendingActions[date]) return;
 
     const previousEmployees = localSchedule[date] ?? [];
     const wasScheduled = previousEmployees.some(
@@ -152,12 +162,15 @@ export function UserScheduleCalendar({
     );
     const optimisticStatus = wasScheduled ? "removed" : "added";
 
-    setSavingDates((current) => new Set(current).add(date));
+    setPendingActions((current) => ({
+      ...current,
+      [date]: optimisticStatus,
+    }));
     setDayUserStatus(date, optimisticStatus, currentUser);
     const result = await toggleMyScheduleDate(date);
-    setSavingDates((current) => {
-      const next = new Set(current);
-      next.delete(date);
+    setPendingActions((current) => {
+      const next = { ...current };
+      delete next[date];
       return next;
     });
 
@@ -223,9 +236,14 @@ export function UserScheduleCalendar({
           <Badge variant="outline">
             <UsersRound className="size-3" /> Coemployees
           </Badge>
-          {isSavingAny ? (
+          {pendingAddCount > 0 ? (
             <Badge variant="secondary">
-              <Loader2 className="size-3 animate-spin" /> Saving...
+              <Loader2 className="size-3 animate-spin" /> Adding...
+            </Badge>
+          ) : null}
+          {pendingRemoveCount > 0 ? (
+            <Badge variant="secondary">
+              <Loader2 className="size-3 animate-spin" /> Removing...
             </Badge>
           ) : null}
         </div>
@@ -246,7 +264,10 @@ export function UserScheduleCalendar({
                 const isMine = employees.some(
                   (employee) => employee.id === currentUser.id
                 );
-                const isSaving = savingDates.has(day.key);
+                const pendingAction = pendingActions[day.key];
+                const isSaving = Boolean(pendingAction);
+                const savingLabel =
+                  pendingAction === "added" ? "Adding" : "Removing";
                 const isAnimated = lastResult?.date === day.key;
                 const isWarning = employees.length > 0 && employees.length < 5;
                 const isPast = day.key < today;
@@ -298,7 +319,7 @@ export function UserScheduleCalendar({
                     {isSaving ? (
                       <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
                         <Loader2 className="size-3 animate-spin" />
-                        Saving
+                        {savingLabel}
                       </span>
                     ) : null}
 
