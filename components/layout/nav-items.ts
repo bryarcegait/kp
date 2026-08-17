@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   ChartColumn,
   Calculator,
+  CalendarCheck,
   CalendarDays,
   type LucideIcon,
 } from "lucide-react";
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: CalendarDays,
     permission: "schedule.view",
   },
+  { title: "My Calendar", href: "/my-calendar", icon: CalendarCheck },
   {
     title: "Cash Summary",
     href: "/cash-summary",
