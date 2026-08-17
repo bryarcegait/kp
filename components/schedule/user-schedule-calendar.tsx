@@ -280,7 +280,7 @@ export function UserScheduleCalendar({
                     onClick={() => handleToggle(day.key)}
                     aria-label={`${formatFullDate(day.key)}, ${isPast ? "past date" : isMine ? "remove" : "add"} my schedule`}
                     className={[
-                      "relative flex min-h-36 flex-col border-b border-r p-2 text-left transition-all disabled:opacity-70",
+                      "relative flex min-h-36 flex-col border-b border-r p-2 pt-10 text-left transition-all disabled:opacity-70",
                       day.inMonth ? "bg-card" : "bg-muted/30 text-muted-foreground",
                       isWarning ? "bg-destructive/10" : "",
                       isMine ? "ring-2 ring-inset ring-primary" : "",
@@ -290,7 +290,7 @@ export function UserScheduleCalendar({
                       isAnimated ? "kp-user-calendar-success" : "",
                     ].join(" ")}
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
                       <div>
                         <span className="text-2xl font-semibold leading-none">
                           {day.date.getDate()}

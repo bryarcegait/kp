@@ -432,14 +432,14 @@ export function ScheduleCalendar({
                   type="button"
                   onClick={() => openDayEditor(day.key)}
                   className={[
-                    "min-h-36 border-b border-r p-2 text-left align-top transition-colors",
+                    "relative flex min-h-36 flex-col border-b border-r p-2 pt-10 text-left transition-colors",
                     day.inMonth ? "bg-card" : "bg-muted/30 text-muted-foreground",
                     isWarning ? "bg-destructive/10" : "",
                     selectedDate === day.key ? "ring-2 ring-inset ring-primary" : "",
                     today === day.key ? "border-primary" : "",
                   ].join(" ")}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
                     <span className="text-2xl font-semibold leading-none">
                       {day.date.getDate()}
                     </span>
@@ -447,7 +447,7 @@ export function ScheduleCalendar({
                       {count} staff
                     </span>
                   </div>
-                  <div className="mt-2 flex flex-col gap-1">
+                  <div className="flex flex-col gap-1">
                     {assignedNames.map((name) => (
                       <span
                         key={name}
