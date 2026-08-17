@@ -15,5 +15,17 @@ export function toMariaDbUrl(databaseUrl: string): string {
     url.searchParams.delete("ssl");
   }
 
+  if (!url.searchParams.has("connectionLimit")) {
+    url.searchParams.set("connectionLimit", "2");
+  }
+
+  if (!url.searchParams.has("connectTimeout")) {
+    url.searchParams.set("connectTimeout", "15000");
+  }
+
+  if (!url.searchParams.has("acquireTimeout")) {
+    url.searchParams.set("acquireTimeout", "25000");
+  }
+
   return url.toString();
 }
