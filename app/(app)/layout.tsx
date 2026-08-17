@@ -11,6 +11,8 @@ import { hasPermission } from "@/lib/permissions";
 import { canViewCashSummary } from "@/lib/cash-summary-access";
 import { canViewSchedule } from "@/lib/schedule-access";
 
+const STAFF_VISIBLE_HREFS = new Set(["/", "/my-calendar"]);
+
 export default async function AppLayout({
   children,
 }: {
@@ -29,6 +31,7 @@ export default async function AppLayout({
   const permissions = session?.user.permissions ?? [];
 
   const visibleHrefs = NAV_ITEMS.filter((item) => {
+    if (session.user.roleName === "Staff") return STAFF_VISIBLE_HREFS.has(item.href);
     if (item.href === "/cash-summary") return canViewCashSummary(session?.user);
     if (item.href === "/schedule") return canViewSchedule(session?.user);
     return !item.permission || hasPermission(permissions, item.permission);
