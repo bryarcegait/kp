@@ -139,6 +139,11 @@ export function UserScheduleCalendar({
   }
 
   async function handleToggle(date: string) {
+    if (date < today) {
+      toast.error("Past dates cannot be scheduled.");
+      return;
+    }
+
     if (savingDates.has(date)) return;
 
     const previousEmployees = localSchedule[date] ?? [];
@@ -244,20 +249,23 @@ export function UserScheduleCalendar({
                 const isSaving = savingDates.has(day.key);
                 const isAnimated = lastResult?.date === day.key;
                 const isWarning = employees.length > 0 && employees.length < 5;
+                const isPast = day.key < today;
 
                 return (
                   <button
                     key={`${day.key}-${isAnimated ? animationKey : "idle"}`}
                     type="button"
-                    disabled={isSaving}
+                    disabled={isSaving || isPast}
                     onClick={() => handleToggle(day.key)}
-                    aria-label={`${formatFullDate(day.key)}, ${isMine ? "remove" : "add"} my schedule`}
+                    aria-label={`${formatFullDate(day.key)}, ${isPast ? "past date" : isMine ? "remove" : "add"} my schedule`}
                     className={[
-                      "relative flex min-h-36 flex-col border-b border-r p-2 text-left transition-all disabled:cursor-wait disabled:opacity-70",
+                      "relative flex min-h-36 flex-col border-b border-r p-2 text-left transition-all disabled:opacity-70",
                       day.inMonth ? "bg-card" : "bg-muted/30 text-muted-foreground",
                       isWarning ? "bg-destructive/10" : "",
                       isMine ? "ring-2 ring-inset ring-primary" : "",
                       today === day.key ? "border-primary" : "",
+                      isSaving ? "cursor-wait" : "",
+                      isPast ? "cursor-not-allowed bg-muted/40 text-muted-foreground" : "",
                       isAnimated ? "kp-user-calendar-success" : "",
                     ].join(" ")}
                   >
@@ -269,6 +277,11 @@ export function UserScheduleCalendar({
                         {isMine ? (
                           <Badge className="ml-2 align-middle" variant="default">
                             Me
+                          </Badge>
+                        ) : null}
+                        {isPast ? (
+                          <Badge className="ml-2 align-middle" variant="outline">
+                            Past
                           </Badge>
                         ) : null}
                       </div>

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { parseInputDate, toDateOnly } from "@/lib/dates";
+import { formatInputDate, parseInputDate, toDateOnly } from "@/lib/dates";
 
 export async function toggleMyScheduleDate(date: string) {
   const session = await auth();
@@ -18,7 +18,12 @@ export async function toggleMyScheduleDate(date: string) {
     return { error: "Your account is not active." };
   }
 
-  const scheduleDate = toDateOnly(parseInputDate(date));
+  const inputDate = parseInputDate(date);
+  if (inputDate < formatInputDate(new Date())) {
+    return { error: "Past dates cannot be scheduled." };
+  }
+
+  const scheduleDate = toDateOnly(inputDate);
   const existing = await db.employeeSchedule.findUnique({
     where: {
       scheduleDate_userId: {
