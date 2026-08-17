@@ -419,12 +419,12 @@ export function ScheduleCalendar({
               const count = assignedIds.length;
               const isWarning = count > 0 && count < 5;
               const dayMonthKey = day.key.slice(5);
-              const birthdayCount = employees.filter(
+              const birthdayEmployees = employees.filter(
                 (employee) => monthDay(employee.birthday) === dayMonthKey
-              ).length;
-              const anniversaryCount = employees.filter(
+              );
+              const anniversaryEmployees = employees.filter(
                 (employee) => monthDay(employee.dateHired) === dayMonthKey
-              ).length;
+              );
 
               return (
                 <button
@@ -456,16 +456,25 @@ export function ScheduleCalendar({
                     ))}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {birthdayCount > 0 ? (
-                      <Badge variant="secondary">
-                        <Cake className="size-3" /> {birthdayCount}
+                    {birthdayEmployees.map((employee) => (
+                      <Badge
+                        key={`${day.key}-birthday-${employee.id}`}
+                        className="h-auto justify-start whitespace-normal text-left leading-tight"
+                        variant="secondary"
+                      >
+                        <Cake className="size-3" /> {firstName(employee.fullName)}
                       </Badge>
-                    ) : null}
-                    {anniversaryCount > 0 ? (
-                      <Badge variant="secondary">
-                        <Sparkles className="size-3" /> {anniversaryCount}
+                    ))}
+                    {anniversaryEmployees.map((employee) => (
+                      <Badge
+                        key={`${day.key}-anniversary-${employee.id}`}
+                        className="h-auto justify-start whitespace-normal text-left leading-tight"
+                        variant="secondary"
+                      >
+                        <Sparkles className="size-3" />{" "}
+                        {firstName(employee.fullName)}
                       </Badge>
-                    ) : null}
+                    ))}
                   </div>
                 </button>
               );
