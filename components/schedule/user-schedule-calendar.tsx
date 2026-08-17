@@ -292,7 +292,7 @@ export function UserScheduleCalendar({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="font-semibold">
+                        <span className="text-2xl font-semibold leading-none">
                           {day.date.getDate()}
                         </span>
                         {isMine ? (

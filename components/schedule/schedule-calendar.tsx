@@ -439,8 +439,10 @@ export function ScheduleCalendar({
                     today === day.key ? "border-primary" : "",
                   ].join(" ")}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold">{day.date.getDate()}</span>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-2xl font-semibold leading-none">
+                      {day.date.getDate()}
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       {count} staff
                     </span>
