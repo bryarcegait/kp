@@ -10,8 +10,11 @@ export const metadata: Metadata = {
   description: "Management system for Kanto't Pakpakan",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icon.png",
-    apple: "/apple-icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
   },
   openGraph: {
     title: "Kanto't Pakpakan",
