@@ -62,7 +62,10 @@ export async function GET(request: NextRequest) {
         databaseUrl: database.configured,
         authSecret: Boolean(process.env.AUTH_SECRET),
         authTrustHost: process.env.AUTH_TRUST_HOST ?? null,
-        blobToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+        blobToken: Boolean(
+          process.env.BLOB_READ_WRITE_TOKEN ||
+            process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN
+        ),
         loyverseToken: Boolean(process.env.LOYVERSE_ACCESS_TOKEN),
       },
       database,
