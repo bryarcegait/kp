@@ -44,6 +44,24 @@ type LoyverseLineItem = {
   gross_total_money?: number;
 };
 
+type LoyverseItemVariant = {
+  variant_id?: string;
+  id?: string;
+  default_price?: number;
+  price?: number;
+  option1_value?: string;
+  option2_value?: string;
+  option3_value?: string;
+  deleted_at?: string | null;
+};
+
+type LoyverseItem = {
+  id: string;
+  item_name: string;
+  deleted_at?: string | null;
+  variants?: LoyverseItemVariant[];
+};
+
 type LoyverseReceipt = {
   receipt_number: string;
   receipt_type: "SALE" | "REFUND";
@@ -79,6 +97,13 @@ export type LoyverseTodayReport = {
   receiptCount: number;
   paymentCount: number;
   payments: LoyversePaymentSummary[];
+};
+
+export type LoyverseCatalogProduct = {
+  id: string;
+  itemId: string;
+  name: string;
+  price: number;
 };
 
 export class LoyverseConfigError extends Error {
@@ -170,6 +195,40 @@ function isDeliveryFeeLineItem(item: LoyverseLineItem) {
 
 function getLineItemAmount(item: LoyverseLineItem) {
   return item.total_money ?? item.gross_total_money ?? 0;
+}
+
+export async function getLoyverseCatalogProducts() {
+  const items = await fetchAll<LoyverseItem, "items">(
+    "/items",
+    "items",
+    new URLSearchParams()
+  );
+
+  return items.flatMap<LoyverseCatalogProduct>((item) => {
+    if (item.deleted_at) return [];
+
+    const variants = item.variants?.filter((variant) => !variant.deleted_at) ?? [];
+    if (variants.length === 0) {
+      return [{ id: item.id, itemId: item.id, name: item.item_name, price: 0 }];
+    }
+
+    return variants.map((variant) => {
+      const optionName = [
+        variant.option1_value,
+        variant.option2_value,
+        variant.option3_value,
+      ]
+        .filter(Boolean)
+        .join(" / ");
+
+      return {
+        id: variant.variant_id ?? variant.id ?? item.id,
+        itemId: item.id,
+        name: optionName ? `${item.item_name} (${optionName})` : item.item_name,
+        price: variant.default_price ?? variant.price ?? 0,
+      };
+    });
+  });
 }
 
 export async function getLoyverseTodayReport(date: Date | string = new Date()) {

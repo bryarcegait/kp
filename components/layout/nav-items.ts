@@ -19,7 +19,7 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { title: "Dashboard", href: "/", icon: LayoutDashboard },
+  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Expenses", href: "/expenses", icon: Receipt, permission: "expenses.view" },
   { title: "POS Reports", href: "/pos-reports", icon: ChartColumn },
   {

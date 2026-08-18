@@ -12,7 +12,7 @@ import { hasPermission } from "@/lib/permissions";
 import { canViewCashSummary } from "@/lib/cash-summary-access";
 import { canViewSchedule } from "@/lib/schedule-access";
 
-const STAFF_VISIBLE_HREFS = new Set(["/", "/my-calendar"]);
+const STAFF_VISIBLE_HREFS = new Set(["/dashboard", "/my-calendar"]);
 
 export default async function AppLayout({
   children,
