@@ -8,6 +8,7 @@ import {
   Calculator,
   CalendarCheck,
   CalendarDays,
+  Utensils,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Calculator,
     permission: "cash_summary.view",
   },
+  { title: "Menu", href: "/menu", icon: Utensils, permission: "menu.manage" },
   { title: "Users", href: "/users", icon: Users, permission: "users.view" },
   { title: "Roles", href: "/roles", icon: ShieldCheck, permission: "roles.view" },
 ];

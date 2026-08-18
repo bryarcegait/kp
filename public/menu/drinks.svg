@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Drinks">
+  <rect width="320" height="220" rx="28" fill="#fff6ee"/>
+  <ellipse cx="160" cy="151" rx="106" ry="34" fill="#ead7c2"/>
+  <path d="M113 63h92l-13 109h-66z" fill="#f8efe5"/>
+  <path d="M124 89h70l-9 73h-52z" fill="#c95c30"/>
+  <path d="M131 111h56" stroke="#fff7ef" stroke-width="6" stroke-linecap="round" opacity=".7"/>
+  <path d="M144 78l-13-31" stroke="#875133" stroke-width="7" stroke-linecap="round"/>
+  <path d="M185 52h35" stroke="#875133" stroke-width="7" stroke-linecap="round"/>
+  <path d="M201 52l-25 67" stroke="#875133" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="223" cy="101" r="19" fill="#f2b71f"/>
+  <circle cx="231" cy="122" r="12" fill="#e7a51b"/>
+  <path d="M90 70c18-15 43-21 72-17" fill="none" stroke="#c45b29" stroke-width="7" stroke-linecap="round" opacity=".35"/>
+</svg>

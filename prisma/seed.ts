@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "../lib/generated/prisma/client";
 import { PERMISSIONS, DEFAULT_ROLE_PERMISSIONS } from "../lib/permissions";
+import { DEFAULT_MENU_PRODUCTS } from "../lib/customer-menu";
 import { toMariaDbUrl } from "../lib/db-url";
 
 const adapter = new PrismaMariaDb(toMariaDbUrl(process.env.DATABASE_URL!));
@@ -51,7 +52,31 @@ async function main() {
     },
   });
 
-  console.log("Seed complete: permissions, roles, and admin user 'bryarcega' are ready.");
+  for (const product of DEFAULT_MENU_PRODUCTS) {
+    await db.menuProduct.upsert({
+      where: { id: product.id },
+      update: {
+        name: product.name,
+        category: product.category,
+        description: product.description,
+        price: product.price,
+        imageUrl: product.imageUrl,
+        sortOrder: product.sortOrder,
+      },
+      create: {
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        description: product.description,
+        price: product.price,
+        imageUrl: product.imageUrl,
+        isAvailable: product.isAvailable,
+        sortOrder: product.sortOrder,
+      },
+    });
+  }
+
+  console.log("Seed complete: permissions, roles, admin user, and menu products are ready.");
 }
 
 main()

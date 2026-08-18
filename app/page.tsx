@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   CalendarClock,
   LocateFixed,
@@ -15,11 +15,7 @@ import {
   createCustomerOrder,
   type CustomerOrderPayload,
 } from "@/app/order-actions";
-import {
-  CUSTOMER_MENU_CATEGORIES,
-  CUSTOMER_MENU_ITEMS,
-  type CustomerMenuCategory,
-} from "@/lib/customer-menu";
+import { CUSTOMER_MENU_CATEGORIES, type CustomerMenuProduct } from "@/lib/customer-menu";
 import { formatCurrency } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,9 +84,10 @@ function getLocationLabel(data: {
 }
 
 export default function CustomerOrderingPage() {
+  const [menuItems, setMenuItems] = useState<CustomerMenuProduct[]>([]);
+  const [isLoadingMenu, setIsLoadingMenu] = useState(true);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [selectedCategory, setSelectedCategory] =
-    useState<CustomerMenuCategory>("Silog");
+  const [selectedCategory, setSelectedCategory] = useState("Wings");
   const [searchQuery, setSearchQuery] = useState("");
   const [step, setStep] = useState<OrderStep>("menu");
   const [customerName, setCustomerName] = useState("");
@@ -105,19 +102,57 @@ export default function CustomerOrderingPage() {
   const [isPending, startTransition] = useTransition();
   const [orderNumber, setOrderNumber] = useState("");
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadMenu() {
+      try {
+        const response = await fetch("/api/customer-menu", { cache: "no-store" });
+        if (!response.ok) throw new Error("Unable to load menu");
+        const data = (await response.json()) as {
+          products?: CustomerMenuProduct[];
+        };
+        const products = data.products ?? [];
+
+        if (!isMounted) return;
+        setMenuItems(products);
+        setSelectedCategory(
+          products[0]?.category ?? CUSTOMER_MENU_CATEGORIES[0] ?? "Wings"
+        );
+      } catch {
+        if (isMounted) {
+          toast.error("Unable to load menu.");
+        }
+      } finally {
+        if (isMounted) setIsLoadingMenu(false);
+      }
+    }
+
+    loadMenu();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const categories = useMemo(() => {
+    const liveCategories = Array.from(new Set(menuItems.map((item) => item.category)));
+    return liveCategories.length > 0 ? liveCategories : [...CUSTOMER_MENU_CATEGORIES];
+  }, [menuItems]);
+
   const selectedItems = useMemo(
     () =>
-      CUSTOMER_MENU_ITEMS.map((item) => ({
+      menuItems.map((item) => ({
         ...item,
         quantity: quantities[item.id] ?? 0,
       })).filter((item) => item.quantity > 0),
-    [quantities]
+    [menuItems, quantities]
   );
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return CUSTOMER_MENU_ITEMS.filter((item) => {
+    return menuItems.filter((item) => {
       const matchesCategory = item.category === selectedCategory;
       const matchesSearch =
         query.length === 0 ||
@@ -126,20 +161,18 @@ export default function CustomerOrderingPage() {
 
       return matchesCategory && matchesSearch;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [menuItems, searchQuery, selectedCategory]);
 
   const categoryCounts = useMemo(
     () =>
-      CUSTOMER_MENU_CATEGORIES.reduce(
+      categories.reduce(
         (counts, category) => ({
           ...counts,
-          [category]: CUSTOMER_MENU_ITEMS.filter(
-            (item) => item.category === category
-          ).length,
+          [category]: menuItems.filter((item) => item.category === category).length,
         }),
-        {} as Record<CustomerMenuCategory, number>
+        {} as Record<string, number>
       ),
-    []
+    [categories, menuItems]
   );
   const totalAmount = selectedItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -147,6 +180,9 @@ export default function CustomerOrderingPage() {
   );
 
   function changeQuantity(itemId: string, amount: number) {
+    const product = menuItems.find((item) => item.id === itemId);
+    if (!product?.isAvailable && amount > 0) return;
+
     setQuantities((current) => {
       const nextQuantity = Math.max(0, (current[itemId] ?? 0) + amount);
       return {
@@ -265,7 +301,7 @@ export default function CustomerOrderingPage() {
 
             <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
               <div className="flex min-w-max gap-2">
-                {CUSTOMER_MENU_CATEGORIES.map((category) => (
+                {categories.map((category) => (
                   <button
                     key={category}
                     type="button"
@@ -297,20 +333,48 @@ export default function CustomerOrderingPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {filteredItems.map((item) => {
+              {isLoadingMenu ? (
+                Array.from({ length: 6 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="min-h-44 rounded-lg border bg-card p-4 shadow-sm"
+                  >
+                    <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
+                    <div className="mt-3 h-4 w-24 animate-pulse rounded bg-muted" />
+                    <div className="mt-6 h-16 animate-pulse rounded bg-muted" />
+                  </div>
+                ))
+              ) : null}
+
+              {!isLoadingMenu && filteredItems.length === 0 ? (
+                <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground sm:col-span-2">
+                  No menu items found.
+                </div>
+              ) : null}
+
+              {!isLoadingMenu ? filteredItems.map((item) => {
                 const quantity = quantities[item.id] ?? 0;
 
                 return (
                   <div
                     key={item.id}
-                    className="grid min-h-44 grid-cols-[1fr_128px] gap-3 overflow-hidden rounded-lg border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                    className={`grid min-h-44 grid-cols-[1fr_128px] gap-3 overflow-hidden rounded-lg border bg-card p-4 shadow-sm transition ${
+                      item.isAvailable
+                        ? "hover:border-primary/40 hover:shadow-md"
+                        : "opacity-55 grayscale"
+                    }`}
                   >
                     <div className="grid content-between gap-4">
                       <div className="grid gap-2">
                         <div>
-                          <p className="text-lg font-bold leading-tight">
-                            {item.name}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-bold leading-tight">
+                              {item.name}
+                            </p>
+                            {!item.isAvailable ? (
+                              <Badge variant="secondary">Not available</Badge>
+                            ) : null}
+                          </div>
                           <p className="mt-1 font-semibold">
                             {formatCurrency(item.price)}
                           </p>
@@ -338,6 +402,7 @@ export default function CustomerOrderingPage() {
                           variant="outline"
                           size="icon-sm"
                           onClick={() => changeQuantity(item.id, 1)}
+                          disabled={!item.isAvailable}
                           aria-label={`Add ${item.name}`}
                         >
                           <Plus className="size-4" />
@@ -356,7 +421,7 @@ export default function CustomerOrderingPage() {
                     </div>
                   </div>
                 );
-              })}
+              }) : null}
             </div>
           </div>
         </section>

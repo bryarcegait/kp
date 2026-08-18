@@ -1,7 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import { getMenuItem } from "@/lib/customer-menu";
 import { db } from "@/lib/db";
 
 const orderTypeSchema = z.enum(["deliver", "pickup", "dine-in"]);
@@ -63,15 +62,22 @@ export async function createCustomerOrder(
     }
   }
 
+  const productIds = order.items.map((item) => item.productId);
+  const products = await db.menuProduct.findMany({
+    where: { id: { in: productIds }, isAvailable: true },
+  });
+  const productsById = new Map(products.map((product) => [product.id, product]));
+
   const items = order.items.map((item) => {
-    const product = getMenuItem(item.productId);
+    const product = productsById.get(item.productId);
     if (!product) return null;
 
-    const lineTotal = product.price * item.quantity;
+    const unitPrice = Number(product.price);
+    const lineTotal = unitPrice * item.quantity;
     return {
       productId: product.id,
       productName: product.name,
-      unitPrice: product.price,
+      unitPrice,
       quantity: item.quantity,
       lineTotal,
     };
