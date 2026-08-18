@@ -6,6 +6,7 @@ import {
   FRIES_FLAVOR_OPTIONS,
   WING_FLAVOR_OPTIONS,
   WING_SIDE_OPTIONS,
+  getWingExtraFlavorCharge,
   getWingOrderChoiceByProductId,
 } from "@/lib/customer-menu";
 
@@ -13,7 +14,7 @@ const orderTypeSchema = z.enum(["deliver", "pickup", "dine-in"]);
 
 const customizationSchema = z
   .object({
-    wingFlavor: z.enum(WING_FLAVOR_OPTIONS).optional(),
+    wingFlavors: z.array(z.enum(WING_FLAVOR_OPTIONS)).min(1).optional(),
     side: z.enum(WING_SIDE_OPTIONS).optional(),
     friesFlavor: z.enum(FRIES_FLAVOR_OPTIONS).optional(),
   })
@@ -46,6 +47,10 @@ export type CreateCustomerOrderResult = {
 
 function makeOrderNumber() {
   return `KP-${Date.now().toString(36).toUpperCase()}`;
+}
+
+function formatPeso(amount: number) {
+  return `₱${amount.toFixed(2)}`;
 }
 
 export async function createCustomerOrder(
@@ -89,21 +94,28 @@ export async function createCustomerOrder(
     const wingChoice = getWingOrderChoiceByProductId(item.productId);
 
     if (wingChoice) {
-      if (!item.customization?.wingFlavor) return null;
-      const hasSide = item.productId === wingChoice.withSideProductId;
+      if (!item.customization?.wingFlavors?.length) return null;
+      const hasSide =
+        Boolean(wingChoice.withSideProductId) &&
+        item.productId === wingChoice.withSideProductId;
       const side = item.customization.side ?? "No side";
+      if (!wingChoice.supportsSides && side !== "No side") return null;
       if (hasSide && side === "No side") return null;
       if (!hasSide && side !== "No side") return null;
       if (side === "Fries" && !item.customization.friesFlavor) return null;
       if (side !== "Fries" && item.customization.friesFlavor) return null;
     }
 
-    const unitPrice = Number(product.price);
+    const extraFlavorCharge =
+      wingChoice && item.customization?.wingFlavors
+        ? getWingExtraFlavorCharge(wingChoice, item.customization.wingFlavors)
+        : 0;
+    const unitPrice = Number(product.price) + extraFlavorCharge;
     const lineTotal = unitPrice * item.quantity;
     const customizationParts =
       wingChoice && item.customization
         ? [
-            item.customization.wingFlavor,
+            item.customization.wingFlavors?.join(" / "),
             item.customization.side &&
             item.customization.side !== "No side" &&
             item.customization.side !== "Fries"
@@ -112,6 +124,7 @@ export async function createCustomerOrder(
             item.customization.friesFlavor
               ? `${item.customization.friesFlavor} Fries`
               : null,
+            extraFlavorCharge > 0 ? `+${formatPeso(extraFlavorCharge)} extra flavors` : null,
           ].filter(Boolean)
         : [];
 

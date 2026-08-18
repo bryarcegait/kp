@@ -17,6 +17,7 @@ const WING_FLAVORS =
   "Flavors: Buffalo, Soy Honey Garlic, Cheesy Wings, Creamy Garlic Mushroom, Garlic Parmesan, Caramelized Patis, Teriyaki, Sriracha Garlic, Salted Egg, Lemon-Pepper, Spicy Korean Barbecue.";
 
 export const WING_FLAVOR_OPTIONS = [
+  "Plain",
   "Buffalo",
   "Soy Honey Garlic",
   "Cheesy Wings",
@@ -29,6 +30,21 @@ export const WING_FLAVOR_OPTIONS = [
   "Lemon-Pepper",
   "Spicy Korean Barbecue",
 ] as const;
+
+export const BEST_SELLER_WING_FLAVORS = [
+  "Buffalo",
+  "Soy Honey Garlic",
+  "Cheesy Wings",
+  "Creamy Garlic Mushroom",
+] as const;
+
+export const SPICY_WING_FLAVORS = [
+  "Buffalo",
+  "Sriracha Garlic",
+  "Spicy Korean Barbecue",
+] as const;
+
+export const EXTRA_WING_FLAVOR_PRICE = 10;
 
 export const WING_SIDE_OPTIONS = [
   "No side",
@@ -51,52 +67,115 @@ export type FriesFlavor = (typeof FRIES_FLAVOR_OPTIONS)[number];
 export type WingOrderChoice = {
   key: string;
   label: string;
+  category: "Wings" | "Barkada Box" | "Bilao";
   noSideProductId: string;
-  withSideProductId: string;
+  withSideProductId?: string;
   noSidePrice: number;
-  withSidePrice: number;
+  withSidePrice?: number;
+  includedFlavorCount: number;
+  supportsSides: boolean;
 };
 
 export const WING_ORDER_CHOICES: WingOrderChoice[] = [
   {
     key: "3pcs",
     label: "3 pcs Wings",
+    category: "Wings",
     noSideProductId: "wings-3pcs-solo",
     withSideProductId: "wings-3pcs-rice-fries",
     noSidePrice: 88,
     withSidePrice: 118,
+    includedFlavorCount: 1,
+    supportsSides: true,
   },
   {
     key: "4pcs",
     label: "4 pcs Wings",
+    category: "Wings",
     noSideProductId: "wings-4pcs-solo",
     withSideProductId: "wings-4pcs-rice-fries",
     noSidePrice: 117,
     withSidePrice: 147,
+    includedFlavorCount: 1,
+    supportsSides: true,
   },
   {
     key: "6pcs",
     label: "6 pcs Wings",
+    category: "Wings",
     noSideProductId: "wings-6pcs-solo",
     withSideProductId: "wings-6pcs-rice-fries",
     noSidePrice: 175,
     withSidePrice: 205,
+    includedFlavorCount: 1,
+    supportsSides: true,
   },
   {
     key: "8pcs",
     label: "8 pcs Wings",
+    category: "Wings",
     noSideProductId: "wings-8pcs-solo",
     withSideProductId: "wings-8pcs-rice-fries",
     noSidePrice: 234,
     withSidePrice: 264,
+    includedFlavorCount: 2,
+    supportsSides: true,
   },
   {
     key: "boneless",
     label: "Boneless Wings",
+    category: "Wings",
     noSideProductId: "boneless-wings-solo",
     withSideProductId: "boneless-wings-rice-fries",
     noSidePrice: 175,
     withSidePrice: 147,
+    includedFlavorCount: 1,
+    supportsSides: true,
+  },
+  {
+    key: "12pcs",
+    label: "12 pcs Barkada Box",
+    category: "Barkada Box",
+    noSideProductId: "barkada-12pcs",
+    noSidePrice: 350,
+    includedFlavorCount: 2,
+    supportsSides: false,
+  },
+  {
+    key: "24pcs",
+    label: "24 pcs Barkada Box",
+    category: "Barkada Box",
+    noSideProductId: "barkada-24pcs",
+    noSidePrice: 700,
+    includedFlavorCount: 4,
+    supportsSides: false,
+  },
+  {
+    key: "30pcs",
+    label: "30 pcs Barkada Box",
+    category: "Barkada Box",
+    noSideProductId: "barkada-30pcs",
+    noSidePrice: 875,
+    includedFlavorCount: 5,
+    supportsSides: false,
+  },
+  {
+    key: "60pcs",
+    label: "60 pcs Wings Bilao",
+    category: "Bilao",
+    noSideProductId: "bilao-60pcs",
+    noSidePrice: 1750,
+    includedFlavorCount: 6,
+    supportsSides: false,
+  },
+  {
+    key: "90pcs",
+    label: "90 pcs Wings Bilao",
+    category: "Bilao",
+    noSideProductId: "bilao-90pcs",
+    noSidePrice: 2650,
+    includedFlavorCount: 6,
+    supportsSides: false,
   },
 ];
 
@@ -105,6 +184,31 @@ export function getWingOrderChoiceByProductId(productId: string) {
     (choice) =>
       choice.noSideProductId === productId || choice.withSideProductId === productId
   );
+}
+
+export function getExtraWingFlavorCount(
+  choice: WingOrderChoice,
+  wingFlavors: readonly WingFlavor[]
+) {
+  const chargeableFlavorCount = new Set(
+    wingFlavors.filter((flavor) => flavor !== "Plain")
+  ).size;
+  return Math.max(0, chargeableFlavorCount - choice.includedFlavorCount);
+}
+
+export function getWingExtraFlavorCharge(
+  choice: WingOrderChoice,
+  wingFlavors: readonly WingFlavor[]
+) {
+  return getExtraWingFlavorCount(choice, wingFlavors) * EXTRA_WING_FLAVOR_PRICE;
+}
+
+export function isBestSellerWingFlavor(flavor: WingFlavor) {
+  return (BEST_SELLER_WING_FLAVORS as readonly string[]).includes(flavor);
+}
+
+export function isSpicyWingFlavor(flavor: WingFlavor) {
+  return (SPICY_WING_FLAVORS as readonly string[]).includes(flavor);
 }
 
 export const CUSTOMER_MENU_CATEGORIES = [

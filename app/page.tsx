@@ -3,7 +3,9 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
+  BadgeCheck,
   CalendarClock,
+  Flame,
   LocateFixed,
   Minus,
   Plus,
@@ -17,9 +19,14 @@ import {
 } from "@/app/order-actions";
 import {
   CUSTOMER_MENU_CATEGORIES,
+  EXTRA_WING_FLAVOR_PRICE,
   FRIES_FLAVOR_OPTIONS,
   WING_FLAVOR_OPTIONS,
   WING_ORDER_CHOICES,
+  getExtraWingFlavorCount,
+  getWingExtraFlavorCharge,
+  isBestSellerWingFlavor,
+  isSpicyWingFlavor,
   type CustomerMenuProduct,
   type FriesFlavor,
   type WingFlavor,
@@ -56,7 +63,7 @@ type WingCartItem = CustomerMenuProduct & {
   quantity: number;
   displayName: string;
   customization: {
-    wingFlavor: WingFlavor;
+    wingFlavors: WingFlavor[];
     side: WingSide;
     friesFlavor?: FriesFlavor;
   };
@@ -115,8 +122,9 @@ export default function CustomerOrderingPage() {
   const [customizingWing, setCustomizingWing] = useState<WingOrderChoice | null>(
     null
   );
-  const [selectedWingFlavor, setSelectedWingFlavor] =
-    useState<WingFlavor>("Buffalo");
+  const [selectedWingFlavors, setSelectedWingFlavors] = useState<WingFlavor[]>([
+    "Plain",
+  ]);
   const [selectedWingSide, setSelectedWingSide] = useState<WingSide>("No side");
   const [selectedFriesFlavor, setSelectedFriesFlavor] =
     useState<FriesFlavor>("Plain");
@@ -196,23 +204,28 @@ export default function CustomerOrderingPage() {
 
     return menuItems.filter((item) => {
       const matchesCategory = item.category === selectedCategory;
-      const isRawWingVariant = item.category === "Wings";
+      const isCustomizableWingProduct = WING_ORDER_CHOICES.some(
+        (choice) =>
+          choice.noSideProductId === item.id || choice.withSideProductId === item.id
+      );
       const matchesSearch =
         query.length === 0 ||
         item.name.toLowerCase().includes(query) ||
         item.description.toLowerCase().includes(query);
 
-      return matchesCategory && !isRawWingVariant && matchesSearch;
+      return matchesCategory && !isCustomizableWingProduct && matchesSearch;
     });
   }, [menuItems, searchQuery, selectedCategory]);
 
   const visibleWingChoices = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (selectedCategory !== "Wings") return [];
 
     return WING_ORDER_CHOICES.filter((choice) => {
+      if (choice.category !== selectedCategory) return false;
       const noSideProduct = menuItemsById.get(choice.noSideProductId);
-      const withSideProduct = menuItemsById.get(choice.withSideProductId);
+      const withSideProduct = choice.withSideProductId
+        ? menuItemsById.get(choice.withSideProductId)
+        : undefined;
       const matchesSearch =
         query.length === 0 || choice.label.toLowerCase().includes(query);
 
@@ -226,8 +239,9 @@ export default function CustomerOrderingPage() {
         (counts, category) => ({
           ...counts,
           [category]:
-            category === "Wings"
-              ? WING_ORDER_CHOICES.length
+            WING_ORDER_CHOICES.some((choice) => choice.category === category)
+              ? WING_ORDER_CHOICES.filter((choice) => choice.category === category)
+                  .length
               : menuItems.filter((item) => item.category === category).length,
         }),
         {} as Record<string, number>
@@ -239,17 +253,26 @@ export default function CustomerOrderingPage() {
     0
   );
   const displayedItemCount =
-    selectedCategory === "Wings" ? visibleWingChoices.length : filteredItems.length;
+    visibleWingChoices.length > 0 ? visibleWingChoices.length : filteredItems.length;
   const customizingNoSideProduct = customizingWing
     ? menuItemsById.get(customizingWing.noSideProductId)
     : undefined;
   const customizingWithSideProduct = customizingWing
-    ? menuItemsById.get(customizingWing.withSideProductId)
+    ? customizingWing.withSideProductId
+      ? menuItemsById.get(customizingWing.withSideProductId)
+      : undefined
     : undefined;
   const selectedWingProduct = customizingWing
     ? getWingProduct(customizingWing, selectedWingSide)
     : undefined;
-  const selectedWingPrice = selectedWingProduct?.price ?? 0;
+  const selectedWingExtraFlavorCharge = customizingWing
+    ? getWingExtraFlavorCharge(customizingWing, selectedWingFlavors)
+    : 0;
+  const selectedWingExtraFlavorCount = customizingWing
+    ? getExtraWingFlavorCount(customizingWing, selectedWingFlavors)
+    : 0;
+  const selectedWingPrice =
+    (selectedWingProduct?.price ?? 0) + selectedWingExtraFlavorCharge;
 
   function changeQuantity(itemId: string, amount: number) {
     const product = menuItems.find((item) => item.id === itemId);
@@ -266,15 +289,19 @@ export default function CustomerOrderingPage() {
 
   function openWingCustomizer(choice: WingOrderChoice) {
     setCustomizingWing(choice);
-    setSelectedWingFlavor("Buffalo");
+    setSelectedWingFlavors(["Plain"]);
     setSelectedWingSide("No side");
     setSelectedFriesFlavor("Plain");
   }
 
   function getWingProduct(choice: WingOrderChoice, side: WingSide) {
-    return menuItemsById.get(
-      side === "No side" ? choice.noSideProductId : choice.withSideProductId
-    );
+    if (!choice.supportsSides || side === "No side") {
+      return menuItemsById.get(choice.noSideProductId);
+    }
+
+    if (!choice.withSideProductId) return undefined;
+
+    return menuItemsById.get(choice.withSideProductId);
   }
 
   function getWingChoiceQuantity(choice: WingOrderChoice) {
@@ -287,30 +314,56 @@ export default function CustomerOrderingPage() {
       .reduce((sum, item) => sum + item.quantity, 0);
   }
 
+  function toggleWingFlavor(flavor: WingFlavor) {
+    setSelectedWingFlavors((current) => {
+      if (current.includes(flavor)) {
+        if (current.length === 1) return current;
+        return current.filter((item) => item !== flavor);
+      }
+
+      return [...current, flavor];
+    });
+  }
+
   function addCustomizedWing() {
     if (!customizingWing) return;
 
-    const product = getWingProduct(customizingWing, selectedWingSide);
+    const normalizedSide = customizingWing.supportsSides
+      ? selectedWingSide
+      : "No side";
+    const product = getWingProduct(customizingWing, normalizedSide);
     if (!product?.isAvailable) {
       toast.error("This wings option is not available.");
       return;
     }
+    if (selectedWingFlavors.length === 0) {
+      toast.error("Please choose at least one wings flavor.");
+      return;
+    }
 
     const friesFlavor =
-      selectedWingSide === "Fries" ? selectedFriesFlavor : undefined;
+      normalizedSide === "Fries" ? selectedFriesFlavor : undefined;
+    const extraFlavorCharge = getWingExtraFlavorCharge(
+      customizingWing,
+      selectedWingFlavors
+    );
+    const unitPrice = product.price + extraFlavorCharge;
+    const flavorKey = [...selectedWingFlavors].sort().join("+");
     const cartItemId = [
       product.id,
-      selectedWingFlavor,
-      selectedWingSide,
+      flavorKey,
+      normalizedSide,
       friesFlavor ?? "",
     ].join("|");
     const sideLabel =
-      selectedWingSide === "No side"
+      normalizedSide === "No side"
         ? "No side"
-        : selectedWingSide === "Fries"
+        : normalizedSide === "Fries"
           ? `${friesFlavor} Fries`
-          : selectedWingSide;
-    const displayName = `${customizingWing.label} (${selectedWingFlavor}, ${sideLabel})`;
+          : normalizedSide;
+    const extraLabel =
+      extraFlavorCharge > 0 ? `, +${formatCurrency(extraFlavorCharge)} extra flavors` : "";
+    const displayName = `${customizingWing.label} (${selectedWingFlavors.join(" / ")}, ${sideLabel}${extraLabel})`;
 
     setWingCartItems((current) => {
       const existing = current.find((item) => item.cartItemId === cartItemId);
@@ -326,12 +379,13 @@ export default function CustomerOrderingPage() {
         ...current,
         {
           ...product,
+          price: unitPrice,
           cartItemId,
           quantity: 1,
           displayName,
           customization: {
-            wingFlavor: selectedWingFlavor,
-            side: selectedWingSide,
+            wingFlavors: selectedWingFlavors,
+            side: normalizedSide,
             friesFlavor,
           },
         },
@@ -514,7 +568,7 @@ export default function CustomerOrderingPage() {
               ) : null}
 
               {!isLoadingMenu &&
-              (selectedCategory === "Wings"
+              (visibleWingChoices.length > 0
                 ? visibleWingChoices.length === 0
                 : filteredItems.length === 0) ? (
                 <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground sm:col-span-2">
@@ -522,10 +576,12 @@ export default function CustomerOrderingPage() {
                 </div>
               ) : null}
 
-              {!isLoadingMenu && selectedCategory === "Wings"
+              {!isLoadingMenu && visibleWingChoices.length > 0
                 ? visibleWingChoices.map((choice) => {
                     const noSideProduct = menuItemsById.get(choice.noSideProductId);
-                    const withSideProduct = menuItemsById.get(choice.withSideProductId);
+                    const withSideProduct = choice.withSideProductId
+                      ? menuItemsById.get(choice.withSideProductId)
+                      : undefined;
                     const isAvailable =
                       Boolean(noSideProduct?.isAvailable) ||
                       Boolean(withSideProduct?.isAvailable);
@@ -553,14 +609,18 @@ export default function CustomerOrderingPage() {
                               </div>
                               <p className="mt-1 font-semibold">
                                 {formatCurrency(choice.noSidePrice)}
-                                <span className="text-sm font-normal text-muted-foreground">
-                                  {" "}
-                                  no side / {formatCurrency(choice.withSidePrice)} with side
-                                </span>
+                                {choice.supportsSides && choice.withSidePrice ? (
+                                  <span className="text-sm font-normal text-muted-foreground">
+                                    {" "}
+                                    no side / {formatCurrency(choice.withSidePrice)} with side
+                                  </span>
+                                ) : null}
                               </p>
                             </div>
                             <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">
-                              Choose side, fries flavor, and wings flavor.
+                              Choose up to {choice.includedFlavorCount} flavor
+                              {choice.includedFlavorCount === 1 ? "" : "s"} included.
+                              Extra non-plain flavors are {formatCurrency(EXTRA_WING_FLAVOR_PRICE)} each.
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -700,7 +760,7 @@ export default function CustomerOrderingPage() {
                     {selectedItems.length > 0 ? (
                       selectedItems.map((item) => (
                         <div
-                          key={item.id}
+                          key={"cartItemId" in item ? item.cartItemId : item.id}
                           className="flex items-center justify-between gap-3 text-sm"
                         >
                           <div className="flex min-w-0 items-center gap-3">
@@ -935,40 +995,44 @@ export default function CustomerOrderingPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {formatCurrency(customizingWing.noSidePrice)} no side /{" "}
-                  {formatCurrency(customizingWing.withSidePrice)} with side
+                  Base {formatCurrency(selectedWingProduct?.price ?? 0)}
+                  {selectedWingExtraFlavorCharge > 0
+                    ? ` + ${formatCurrency(selectedWingExtraFlavorCharge)} extra flavors`
+                    : ""}
                 </p>
               </div>
 
-              <div className="grid gap-2">
-                <Label>Side</Label>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(["No side", "Java Rice", "Plain Rice", "Fries"] as WingSide[]).map(
-                    (side) => {
-                      const product =
-                        side === "No side"
-                          ? customizingNoSideProduct
-                          : customizingWithSideProduct;
-                      const isDisabled = !product?.isAvailable;
+              {customizingWing.supportsSides ? (
+                <div className="grid gap-2">
+                  <Label>Side</Label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(["No side", "Java Rice", "Plain Rice", "Fries"] as WingSide[]).map(
+                      (side) => {
+                        const product =
+                          side === "No side"
+                            ? customizingNoSideProduct
+                            : customizingWithSideProduct;
+                        const isDisabled = !product?.isAvailable;
 
-                      return (
-                        <Button
-                          key={side}
-                          type="button"
-                          variant={selectedWingSide === side ? "default" : "outline"}
-                          disabled={isDisabled}
-                          onClick={() => setSelectedWingSide(side)}
-                          className="justify-start"
-                        >
-                          {side}
-                        </Button>
-                      );
-                    }
-                  )}
+                        return (
+                          <Button
+                            key={side}
+                            type="button"
+                            variant={selectedWingSide === side ? "default" : "outline"}
+                            disabled={isDisabled}
+                            onClick={() => setSelectedWingSide(side)}
+                            className="justify-start"
+                          >
+                            {side}
+                          </Button>
+                        );
+                      }
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
-              {selectedWingSide === "Fries" ? (
+              {customizingWing.supportsSides && selectedWingSide === "Fries" ? (
                 <div className="grid gap-2">
                   <Label>Fries flavor</Label>
                   <div className="grid grid-cols-2 gap-2">
@@ -990,19 +1054,43 @@ export default function CustomerOrderingPage() {
               ) : null}
 
               <div className="grid gap-2">
-                <Label>Wings flavor</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Wings flavors</Label>
+                  <Badge variant="secondary">
+                    {customizingWing.includedFlavorCount} included
+                    {selectedWingExtraFlavorCount > 0
+                      ? ` / +${formatCurrency(selectedWingExtraFlavorCharge)}`
+                      : ""}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Choose multiple flavors. Plain does not count toward extra
+                  flavor charges.
+                </p>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {WING_FLAVOR_OPTIONS.map((flavor) => (
-                    <Button
-                      key={flavor}
-                      type="button"
-                      variant={selectedWingFlavor === flavor ? "default" : "outline"}
-                      onClick={() => setSelectedWingFlavor(flavor)}
-                      className="justify-start whitespace-normal text-left"
-                    >
-                      {flavor}
-                    </Button>
-                  ))}
+                  {WING_FLAVOR_OPTIONS.map((flavor) => {
+                    const isSelected = selectedWingFlavors.includes(flavor);
+
+                    return (
+                      <Button
+                        key={flavor}
+                        type="button"
+                        variant={isSelected ? "default" : "outline"}
+                        onClick={() => toggleWingFlavor(flavor)}
+                        className="h-auto justify-start whitespace-normal py-2 text-left"
+                      >
+                        <span className="flex w-full items-center gap-2">
+                          <span className="flex-1">{flavor}</span>
+                          {isBestSellerWingFlavor(flavor) ? (
+                            <BadgeCheck className="size-4 text-emerald-600" />
+                          ) : null}
+                          {isSpicyWingFlavor(flavor) ? (
+                            <Flame className="size-4 text-destructive" />
+                          ) : null}
+                        </span>
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
 
