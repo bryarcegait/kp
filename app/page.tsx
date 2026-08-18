@@ -174,6 +174,12 @@ export default function CustomerOrderingPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (step === "details" || step === "sent") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [step]);
+
   const categories = useMemo(() => {
     const liveCategories = Array.from(new Set(menuItems.map((item) => item.category)));
     return liveCategories.length > 0 ? liveCategories : [...CUSTOMER_MENU_CATEGORIES];
@@ -482,6 +488,305 @@ export default function CustomerOrderingPage() {
     });
   }
 
+  function renderOrderItems({ editable = true }: { editable?: boolean } = {}) {
+    if (selectedItems.length === 0) {
+      return (
+        <p className="text-sm text-muted-foreground">
+          No items selected.
+        </p>
+      );
+    }
+
+    return selectedItems.map((item) => (
+      <div
+        key={"cartItemId" in item ? item.cartItemId : item.id}
+        className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-lg border bg-muted/20 p-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center"
+      >
+        <Image
+          src={item.imageSrc}
+          alt={item.displayName}
+          width={48}
+          height={48}
+          className="size-12 shrink-0 rounded-lg border bg-muted object-contain p-1"
+        />
+        <div className="min-w-0">
+          <p className="break-words font-medium leading-snug [overflow-wrap:anywhere]">
+            {item.displayName}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {formatCurrency(item.price)} each
+          </p>
+        </div>
+        <div className="col-start-2 grid justify-items-start gap-1 sm:col-start-auto sm:justify-items-end">
+          <span className="font-medium">
+            {formatCurrency(item.price * item.quantity)}
+          </span>
+          {editable ? (
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={() => changeCartItemQuantity(item, -1)}
+                aria-label={`Remove ${item.displayName}`}
+              >
+                <Minus className="size-3.5" />
+              </Button>
+              <span className="min-w-5 text-center text-xs font-semibold">
+                {item.quantity}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={() => changeCartItemQuantity(item, 1)}
+                aria-label={`Add ${item.displayName}`}
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <span className="text-xs font-semibold text-muted-foreground">
+              Qty {item.quantity}
+            </span>
+          )}
+        </div>
+      </div>
+    ));
+  }
+
+  function renderOrderTotal() {
+    return (
+      <div className="border-t pt-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-medium">Total</span>
+          <span className="text-2xl font-bold">
+            {formatCurrency(totalAmount)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "details") {
+    return (
+      <main className="min-h-svh bg-background text-foreground">
+        <div className="mx-auto grid w-full max-w-5xl gap-5 p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/kanto-logo.png"
+                alt="Kanto't Pakpakan"
+                width={86}
+                height={62}
+                className="h-16 w-24 object-contain"
+              />
+              <div>
+                <p className="text-sm font-medium text-primary">
+                  Kanto&apos;t Pakpakan
+                </p>
+                <h1 className="text-2xl font-semibold tracking-tight">
+                  Order Details
+                </h1>
+              </div>
+            </div>
+            <Button type="button" variant="outline" onClick={() => setStep("menu")}>
+              Back to menu
+            </Button>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[1fr_380px] lg:items-start">
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form
+                  className="grid gap-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    submitOrder();
+                  }}
+                >
+                  <div className="grid gap-2">
+                    <Label htmlFor="customerName">Name</Label>
+                    <Input
+                      id="customerName"
+                      value={customerName}
+                      onChange={(event) => setCustomerName(event.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="phoneNumber">Phone number</Label>
+                    <Input
+                      id="phoneNumber"
+                      value={phoneNumber}
+                      onChange={(event) => setPhoneNumber(event.target.value)}
+                      inputMode="tel"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label>Order type</Label>
+                    <Select
+                      value={orderType}
+                      onValueChange={(value) => setOrderType(value as OrderType)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ORDER_TYPES.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label>Time</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={scheduleType === "now" ? "default" : "outline"}
+                        onClick={() => setScheduleType("now")}
+                      >
+                        Now
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={scheduleType === "later" ? "default" : "outline"}
+                        onClick={() => setScheduleType("later")}
+                      >
+                        Specific
+                      </Button>
+                    </div>
+                  </div>
+
+                  {scheduleType === "later" ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="grid gap-2">
+                        <Label htmlFor="orderDate">Date</Label>
+                        <Input
+                          id="orderDate"
+                          type="date"
+                          min={todayInputDate()}
+                          value={orderDate}
+                          onChange={(event) => setOrderDate(event.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="orderTime">Time</Label>
+                        <Input
+                          id="orderTime"
+                          type="time"
+                          value={orderTime}
+                          onChange={(event) => setOrderTime(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                      <CalendarClock className="size-4" />
+                      Today, now
+                    </div>
+                  )}
+
+                  {orderType === "deliver" ? (
+                    <div className="grid gap-2 rounded-lg border bg-muted/30 p-3">
+                      <Label>Delivery location</Label>
+                      {deliveryLocation ? (
+                        <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">
+                          {deliveryLocation.label}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No location confirmed.
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={confirmLocation}
+                        disabled={isLocating}
+                      >
+                        <LocateFixed className="size-4" />
+                        {isLocating ? "Getting location..." : "Confirm location"}
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  <Button type="submit" disabled={isPending}>
+                    {isPending ? "Sending..." : "Send order"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShoppingBag className="size-5 text-primary" />
+                  Order Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid gap-2">{renderOrderItems({ editable: false })}</div>
+                {renderOrderTotal()}
+                <Button type="button" variant="outline" onClick={() => setStep("menu")}>
+                  Edit order
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (step === "sent") {
+    return (
+      <main className="grid min-h-svh place-items-center bg-background p-4 text-foreground">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <div className="flex justify-center">
+              <Image
+                src="/kanto-logo.png"
+                alt="Kanto't Pakpakan"
+                width={100}
+                height={72}
+                className="h-20 w-28 object-contain"
+              />
+            </div>
+            <CardTitle>Order sent</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm text-muted-foreground">Reference number</p>
+              <p className="text-2xl font-bold text-primary">{orderNumber}</p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => {
+                setQuantities({});
+                setWingCartItems([]);
+                setStep("menu");
+                setOrderNumber("");
+              }}
+            >
+              New order
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-svh bg-background text-foreground">
       <div className="mx-auto grid min-h-svh w-full max-w-6xl gap-6 p-4 sm:p-6 lg:grid-cols-[1fr_360px]">
@@ -733,242 +1038,15 @@ export default function CustomerOrderingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
-              {step === "sent" ? (
-                <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 text-center">
-                  <p className="text-lg font-semibold">Order sent</p>
-                  <p className="text-sm text-muted-foreground">
-                    Reference number
-                  </p>
-                  <p className="text-2xl font-bold text-primary">{orderNumber}</p>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setQuantities({});
-                      setWingCartItems([]);
-                      setStep("menu");
-                      setOrderNumber("");
-                    }}
-                  >
-                    New order
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <div className="grid gap-2">
-                    {selectedItems.length > 0 ? (
-                      selectedItems.map((item) => (
-                        <div
-                          key={"cartItemId" in item ? item.cartItemId : item.id}
-                          className="flex items-center justify-between gap-3 text-sm"
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <Image
-                              src={item.imageSrc}
-                              alt={item.displayName}
-                              width={44}
-                              height={44}
-                              className="size-11 shrink-0 rounded-lg border bg-muted object-contain p-1"
-                            />
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">
-                                {item.displayName}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatCurrency(item.price)} each
-                              </p>
-                            </div>
-                          </div>
-                          <div className="grid justify-items-end gap-1">
-                            <span className="font-medium">
-                              {formatCurrency(item.price * item.quantity)}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon-sm"
-                                onClick={() => changeCartItemQuantity(item, -1)}
-                                aria-label={`Remove ${item.displayName}`}
-                              >
-                                <Minus className="size-3.5" />
-                              </Button>
-                              <span className="min-w-5 text-center text-xs font-semibold">
-                                {item.quantity}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon-sm"
-                                onClick={() => changeCartItemQuantity(item, 1)}
-                                aria-label={`Add ${item.displayName}`}
-                              >
-                                <Plus className="size-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        No items selected.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="border-t pt-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium">Total</span>
-                      <span className="text-2xl font-bold">
-                        {formatCurrency(totalAmount)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {step === "menu" ? (
-                    <Button
-                      type="button"
-                      disabled={selectedItems.length === 0}
-                      onClick={() => setStep("details")}
-                    >
-                      Ready to send order
-                    </Button>
-                  ) : null}
-
-                  {step === "details" ? (
-                    <div className="grid gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="customerName">Name</Label>
-                        <Input
-                          id="customerName"
-                          value={customerName}
-                          onChange={(event) => setCustomerName(event.target.value)}
-                          required
-                        />
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="phoneNumber">Phone number</Label>
-                        <Input
-                          id="phoneNumber"
-                          value={phoneNumber}
-                          onChange={(event) => setPhoneNumber(event.target.value)}
-                          inputMode="tel"
-                          required
-                        />
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label>Order type</Label>
-                        <Select
-                          value={orderType}
-                          onValueChange={(value) => setOrderType(value as OrderType)}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ORDER_TYPES.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label>Time</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            type="button"
-                            variant={scheduleType === "now" ? "default" : "outline"}
-                            onClick={() => setScheduleType("now")}
-                          >
-                            Now
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={scheduleType === "later" ? "default" : "outline"}
-                            onClick={() => setScheduleType("later")}
-                          >
-                            Specific
-                          </Button>
-                        </div>
-                      </div>
-
-                      {scheduleType === "later" ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="grid gap-2">
-                            <Label htmlFor="orderDate">Date</Label>
-                            <Input
-                              id="orderDate"
-                              type="date"
-                              min={todayInputDate()}
-                              value={orderDate}
-                              onChange={(event) => setOrderDate(event.target.value)}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="orderTime">Time</Label>
-                            <Input
-                              id="orderTime"
-                              type="time"
-                              value={orderTime}
-                              onChange={(event) => setOrderTime(event.target.value)}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                          <CalendarClock className="size-4" />
-                          Today, now
-                        </div>
-                      )}
-
-                      {orderType === "deliver" ? (
-                        <div className="grid gap-2 rounded-lg border bg-muted/30 p-3">
-                          <Label>Delivery location</Label>
-                          {deliveryLocation ? (
-                            <p className="text-sm font-medium">
-                              {deliveryLocation.label}
-                            </p>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">
-                              No location confirmed.
-                            </p>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={confirmLocation}
-                            disabled={isLocating}
-                          >
-                            <LocateFixed className="size-4" />
-                            {isLocating ? "Getting location..." : "Confirm location"}
-                          </Button>
-                        </div>
-                      ) : null}
-
-                      <div className="grid gap-2">
-                        <Button
-                          type="button"
-                          onClick={submitOrder}
-                          disabled={isPending}
-                        >
-                          {isPending ? "Sending..." : "Send order"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setStep("menu")}
-                        >
-                          Back to order
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-                </>
-              )}
+              <div className="grid gap-2">{renderOrderItems()}</div>
+              {renderOrderTotal()}
+              <Button
+                type="button"
+                disabled={selectedItems.length === 0}
+                onClick={() => setStep("details")}
+              >
+                Ready to send order
+              </Button>
             </CardContent>
           </Card>
         </aside>
