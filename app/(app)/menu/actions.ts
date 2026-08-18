@@ -76,7 +76,16 @@ export async function upsertMenuProduct(
     if (!ALLOWED_MENU_IMAGE_TYPES.includes(image.type)) {
       return { error: "Image must be PNG, JPG, or WebP." };
     }
-    imageUrl = await uploadMenuImage(image);
+    try {
+      imageUrl = await uploadMenuImage(image);
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Image upload failed. Please try another image.",
+      };
+    }
   }
 
   const data = {

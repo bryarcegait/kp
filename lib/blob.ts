@@ -14,6 +14,12 @@ async function uploadPublicFile(folder: string, file: File): Promise<string> {
     return blob.url;
   }
 
+  if (process.env.VERCEL) {
+    throw new Error(
+      "File uploads need Vercel Blob storage. Add BLOB_READ_WRITE_TOKEN in Vercel, then redeploy."
+    );
+  }
+
   const uploadsDir = path.join(process.cwd(), "public", "uploads", folder);
   await mkdir(uploadsDir, { recursive: true });
   const diskName = `${crypto.randomUUID()}${ext}`;
