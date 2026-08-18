@@ -73,6 +73,7 @@ model User {
   cashSummariesCreated DailyCashSummary[] @relation("CashSummaryCreatedBy")
   cashSummariesUpdated DailyCashSummary[] @relation("CashSummaryUpdatedBy")
   schedules            EmployeeSchedule[]
+  bankEntries          BankEntry[]
 
   @@index([roleId])
   @@map("users")
@@ -106,6 +107,26 @@ model Expense {
 
   @@index([createdById])
   @@map("expenses")
+}
+
+model BankEntry {
+  id           String    @id @default(cuid())
+  entryType    String
+  businessDate DateTime? @db.Date
+  name         String
+  amount       Decimal   @db.Decimal(12, 2)
+  remarks      String?   @db.Text
+  receiptUrl   String?   @db.Text
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([entryType])
+  @@index([businessDate])
+  @@index([createdById])
+  @@map("bank_entries")
 }
 
 model DailyCashSummary {
