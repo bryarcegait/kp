@@ -16,3 +16,7 @@ export function canViewBank(user: BankSessionUser | undefined) {
 export function canManageBank(user: BankSessionUser | undefined) {
   return hasPermission(user?.permissions, "bank.manage") || isBankRole(user?.roleName);
 }
+
+export function canSetBankCurrentAmount(user: BankSessionUser | undefined) {
+  return user?.roleName === "System Admin";
+}

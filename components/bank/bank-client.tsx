@@ -242,11 +242,13 @@ function CashTransferForm({
   transferAmount,
   existingTransferAmount,
   canManage,
+  canRecordCashTransfer,
 }: {
   selectedDate: string;
   transferAmount: number;
   existingTransferAmount: number;
   canManage: boolean;
+  canRecordCashTransfer: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(
     recordDailyCashTransfer,
@@ -260,7 +262,7 @@ function CashTransferForm({
       <input type="hidden" name="businessDate" value={selectedDate} />
       <Button
         type="submit"
-        disabled={!canManage || isPending || transferAmount <= 0}
+        disabled={!canManage || !canRecordCashTransfer || isPending || transferAmount <= 0}
       >
         {isPending
           ? "Saving..."
@@ -271,6 +273,12 @@ function CashTransferForm({
       {state.error ? (
         <p className="text-sm font-medium text-destructive" role="alert">
           {state.error}
+        </p>
+      ) : null}
+      {!canRecordCashTransfer ? (
+        <p className="text-sm text-muted-foreground">
+          Bank transfer recording starts tomorrow. Today&apos;s cash on hand will
+          be used for tomorrow&apos;s transfer.
         </p>
       ) : null}
     </form>
@@ -294,6 +302,8 @@ export function BankClient({
   bankExpenses,
   ledgerEntries,
   canManage,
+  canSetCurrentAmount,
+  canRecordCashTransfer,
 }: {
   selectedDate: string;
   currentBalance: number;
@@ -304,6 +314,8 @@ export function BankClient({
   bankExpenses: BankExpenseRow[];
   ledgerEntries: BankLedgerRow[];
   canManage: boolean;
+  canSetCurrentAmount: boolean;
+  canRecordCashTransfer: boolean;
 }) {
   const [dialogTarget, setDialogTarget] = useState<"new" | BankExpenseRow | null>(
     null
@@ -396,11 +408,15 @@ export function BankClient({
               Use this when starting or correcting the bank balance. It saves an
               adjustment row in the ledger.
             </p>
-            {canManage ? (
+            {canSetCurrentAmount ? (
               <div className="mt-4">
                 <SetBankBalanceForm currentBalance={currentBalance} />
               </div>
-            ) : null}
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Only System Admin can set the current bank amount.
+              </p>
+            )}
           </div>
 
           <div className="rounded-lg border p-4">
@@ -437,6 +453,7 @@ export function BankClient({
                 transferAmount={transferAmount}
                 existingTransferAmount={existingTransferAmount}
                 canManage={canManage}
+                canRecordCashTransfer={canRecordCashTransfer}
               />
             </div>
           </div>

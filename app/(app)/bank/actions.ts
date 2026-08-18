@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { canManageBank } from "@/lib/bank-access";
+import { canManageBank, canSetBankCurrentAmount } from "@/lib/bank-access";
 import { uploadReceipt } from "@/lib/blob";
 import { addInputDateDays, parseInputDate, toDateOnly } from "@/lib/dates";
 
@@ -42,6 +42,15 @@ async function requireBankManager() {
   return { session } as const;
 }
 
+async function requireBankSystemAdmin() {
+  const session = await auth();
+  if (!session) return { error: "You must be signed in." } as const;
+  if (!canSetBankCurrentAmount(session.user)) {
+    return { error: "Only System Admin can set the current bank amount." } as const;
+  }
+  return { session } as const;
+}
+
 function collectFieldErrors(error: z.ZodError) {
   const fieldErrors: Record<string, string> = {};
   for (const issue of error.issues) {
@@ -55,6 +64,17 @@ function revalidateBank() {
   revalidatePath("/dashboard");
 }
 
+function getTodayInputDate() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 async function getCurrentBankBalance() {
   const result = await db.bankEntry.aggregate({ _sum: { amount: true } });
   return Number(result._sum.amount ?? 0);
@@ -64,7 +84,7 @@ export async function setBankCurrentAmount(
   _prevState: BankFormState,
   formData: FormData
 ): Promise<BankFormState> {
-  const guard = await requireBankManager();
+  const guard = await requireBankSystemAdmin();
   if ("error" in guard) return { error: guard.error };
 
   const parsed = bankBalanceSchema.safeParse({
@@ -116,6 +136,13 @@ export async function recordDailyCashTransfer(
   }
 
   const businessDateInput = parseInputDate(parsed.data.businessDate);
+  if (businessDateInput <= getTodayInputDate()) {
+    return {
+      error:
+        "Bank transfer recording starts tomorrow. Use today's cash on hand as tomorrow's transfer basis.",
+    };
+  }
+
   const businessDate = toDateOnly(businessDateInput);
   const yesterdayDate = toDateOnly(addInputDateDays(businessDateInput, -1));
 
