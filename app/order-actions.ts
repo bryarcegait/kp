@@ -2,12 +2,27 @@
 
 import { z } from "zod";
 import { db } from "@/lib/db";
+import {
+  FRIES_FLAVOR_OPTIONS,
+  WING_FLAVOR_OPTIONS,
+  WING_SIDE_OPTIONS,
+  getWingOrderChoiceByProductId,
+} from "@/lib/customer-menu";
 
 const orderTypeSchema = z.enum(["deliver", "pickup", "dine-in"]);
+
+const customizationSchema = z
+  .object({
+    wingFlavor: z.enum(WING_FLAVOR_OPTIONS).optional(),
+    side: z.enum(WING_SIDE_OPTIONS).optional(),
+    friesFlavor: z.enum(FRIES_FLAVOR_OPTIONS).optional(),
+  })
+  .optional();
 
 const orderItemSchema = z.object({
   productId: z.string().min(1),
   quantity: z.coerce.number().int().min(1).max(99),
+  customization: customizationSchema,
 });
 
 const customerOrderSchema = z.object({
@@ -71,12 +86,41 @@ export async function createCustomerOrder(
   const items = order.items.map((item) => {
     const product = productsById.get(item.productId);
     if (!product) return null;
+    const wingChoice = getWingOrderChoiceByProductId(item.productId);
+
+    if (wingChoice) {
+      if (!item.customization?.wingFlavor) return null;
+      const hasSide = item.productId === wingChoice.withSideProductId;
+      const side = item.customization.side ?? "No side";
+      if (hasSide && side === "No side") return null;
+      if (!hasSide && side !== "No side") return null;
+      if (side === "Fries" && !item.customization.friesFlavor) return null;
+      if (side !== "Fries" && item.customization.friesFlavor) return null;
+    }
 
     const unitPrice = Number(product.price);
     const lineTotal = unitPrice * item.quantity;
+    const customizationParts =
+      wingChoice && item.customization
+        ? [
+            item.customization.wingFlavor,
+            item.customization.side &&
+            item.customization.side !== "No side" &&
+            item.customization.side !== "Fries"
+              ? item.customization.side
+              : null,
+            item.customization.friesFlavor
+              ? `${item.customization.friesFlavor} Fries`
+              : null,
+          ].filter(Boolean)
+        : [];
+
     return {
       productId: product.id,
-      productName: product.name,
+      productName:
+        customizationParts.length > 0
+          ? `${wingChoice?.label ?? product.name} (${customizationParts.join(", ")})`
+          : product.name,
       unitPrice,
       quantity: item.quantity,
       lineTotal,
@@ -84,7 +128,7 @@ export async function createCustomerOrder(
   });
 
   if (items.some((item) => item === null)) {
-    return { error: "One of the selected products is no longer available." };
+    return { error: "One of the selected products is no longer available or has invalid options." };
   }
 
   const validItems = items.filter((item): item is NonNullable<typeof item> =>

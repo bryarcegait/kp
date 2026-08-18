@@ -16,6 +16,97 @@ export type DefaultMenuProduct = Omit<CustomerMenuProduct, "imageSrc"> & {
 const WING_FLAVORS =
   "Flavors: Buffalo, Soy Honey Garlic, Cheesy Wings, Creamy Garlic Mushroom, Garlic Parmesan, Caramelized Patis, Teriyaki, Sriracha Garlic, Salted Egg, Lemon-Pepper, Spicy Korean Barbecue.";
 
+export const WING_FLAVOR_OPTIONS = [
+  "Buffalo",
+  "Soy Honey Garlic",
+  "Cheesy Wings",
+  "Creamy Garlic Mushroom",
+  "Garlic Parmesan",
+  "Caramelized Patis",
+  "Teriyaki",
+  "Sriracha Garlic",
+  "Salted Egg",
+  "Lemon-Pepper",
+  "Spicy Korean Barbecue",
+] as const;
+
+export const WING_SIDE_OPTIONS = [
+  "No side",
+  "Java Rice",
+  "Plain Rice",
+  "Fries",
+] as const;
+
+export const FRIES_FLAVOR_OPTIONS = [
+  "Plain",
+  "Sour Cream",
+  "Barbecue",
+  "Cheese",
+] as const;
+
+export type WingFlavor = (typeof WING_FLAVOR_OPTIONS)[number];
+export type WingSide = (typeof WING_SIDE_OPTIONS)[number];
+export type FriesFlavor = (typeof FRIES_FLAVOR_OPTIONS)[number];
+
+export type WingOrderChoice = {
+  key: string;
+  label: string;
+  noSideProductId: string;
+  withSideProductId: string;
+  noSidePrice: number;
+  withSidePrice: number;
+};
+
+export const WING_ORDER_CHOICES: WingOrderChoice[] = [
+  {
+    key: "3pcs",
+    label: "3 pcs Wings",
+    noSideProductId: "wings-3pcs-solo",
+    withSideProductId: "wings-3pcs-rice-fries",
+    noSidePrice: 88,
+    withSidePrice: 118,
+  },
+  {
+    key: "4pcs",
+    label: "4 pcs Wings",
+    noSideProductId: "wings-4pcs-solo",
+    withSideProductId: "wings-4pcs-rice-fries",
+    noSidePrice: 117,
+    withSidePrice: 147,
+  },
+  {
+    key: "6pcs",
+    label: "6 pcs Wings",
+    noSideProductId: "wings-6pcs-solo",
+    withSideProductId: "wings-6pcs-rice-fries",
+    noSidePrice: 175,
+    withSidePrice: 205,
+  },
+  {
+    key: "8pcs",
+    label: "8 pcs Wings",
+    noSideProductId: "wings-8pcs-solo",
+    withSideProductId: "wings-8pcs-rice-fries",
+    noSidePrice: 234,
+    withSidePrice: 264,
+  },
+  {
+    key: "boneless",
+    label: "Boneless Wings",
+    noSideProductId: "boneless-wings-solo",
+    withSideProductId: "boneless-wings-rice-fries",
+    noSidePrice: 175,
+    withSidePrice: 147,
+  },
+];
+
+export function getWingOrderChoiceByProductId(productId: string) {
+  return WING_ORDER_CHOICES.find(
+    (choice) =>
+      choice.noSideProductId === productId || choice.withSideProductId === productId
+  );
+}
+
 export const CUSTOMER_MENU_CATEGORIES = [
   "Wings",
   "Barkada Box",

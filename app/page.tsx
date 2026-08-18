@@ -15,11 +15,22 @@ import {
   createCustomerOrder,
   type CustomerOrderPayload,
 } from "@/app/order-actions";
-import { CUSTOMER_MENU_CATEGORIES, type CustomerMenuProduct } from "@/lib/customer-menu";
+import {
+  CUSTOMER_MENU_CATEGORIES,
+  FRIES_FLAVOR_OPTIONS,
+  WING_FLAVOR_OPTIONS,
+  WING_ORDER_CHOICES,
+  type CustomerMenuProduct,
+  type FriesFlavor,
+  type WingFlavor,
+  type WingOrderChoice,
+  type WingSide,
+} from "@/lib/customer-menu";
 import { formatCurrency } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -39,6 +50,19 @@ type DeliveryLocation = {
   longitude: number;
   label: string;
 };
+
+type WingCartItem = CustomerMenuProduct & {
+  cartItemId: string;
+  quantity: number;
+  displayName: string;
+  customization: {
+    wingFlavor: WingFlavor;
+    side: WingSide;
+    friesFlavor?: FriesFlavor;
+  };
+};
+
+type SelectedItem = (CustomerMenuProduct & { quantity: number; displayName: string }) | WingCartItem;
 
 const ORDER_TYPES: { value: OrderType; label: string }[] = [
   { value: "deliver", label: "Deliver" },
@@ -87,6 +111,15 @@ export default function CustomerOrderingPage() {
   const [menuItems, setMenuItems] = useState<CustomerMenuProduct[]>([]);
   const [isLoadingMenu, setIsLoadingMenu] = useState(true);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [wingCartItems, setWingCartItems] = useState<WingCartItem[]>([]);
+  const [customizingWing, setCustomizingWing] = useState<WingOrderChoice | null>(
+    null
+  );
+  const [selectedWingFlavor, setSelectedWingFlavor] =
+    useState<WingFlavor>("Buffalo");
+  const [selectedWingSide, setSelectedWingSide] = useState<WingSide>("No side");
+  const [selectedFriesFlavor, setSelectedFriesFlavor] =
+    useState<FriesFlavor>("Plain");
   const [selectedCategory, setSelectedCategory] = useState("Wings");
   const [searchQuery, setSearchQuery] = useState("");
   const [step, setStep] = useState<OrderStep>("menu");
@@ -140,13 +173,22 @@ export default function CustomerOrderingPage() {
     return liveCategories.length > 0 ? liveCategories : [...CUSTOMER_MENU_CATEGORIES];
   }, [menuItems]);
 
-  const selectedItems = useMemo(
-    () =>
-      menuItems.map((item) => ({
+  const menuItemsById = useMemo(
+    () => new Map(menuItems.map((item) => [item.id, item])),
+    [menuItems]
+  );
+
+  const selectedItems = useMemo<SelectedItem[]>(
+    () => {
+      const regularSelectedItems = menuItems.map((item) => ({
         ...item,
         quantity: quantities[item.id] ?? 0,
-      })).filter((item) => item.quantity > 0),
-    [menuItems, quantities]
+        displayName: item.name,
+      })).filter((item) => item.quantity > 0);
+
+      return [...regularSelectedItems, ...wingCartItems];
+    },
+    [menuItems, quantities, wingCartItems]
   );
 
   const filteredItems = useMemo(() => {
@@ -154,21 +196,39 @@ export default function CustomerOrderingPage() {
 
     return menuItems.filter((item) => {
       const matchesCategory = item.category === selectedCategory;
+      const isRawWingVariant = item.category === "Wings";
       const matchesSearch =
         query.length === 0 ||
         item.name.toLowerCase().includes(query) ||
         item.description.toLowerCase().includes(query);
 
-      return matchesCategory && matchesSearch;
+      return matchesCategory && !isRawWingVariant && matchesSearch;
     });
   }, [menuItems, searchQuery, selectedCategory]);
+
+  const visibleWingChoices = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (selectedCategory !== "Wings") return [];
+
+    return WING_ORDER_CHOICES.filter((choice) => {
+      const noSideProduct = menuItemsById.get(choice.noSideProductId);
+      const withSideProduct = menuItemsById.get(choice.withSideProductId);
+      const matchesSearch =
+        query.length === 0 || choice.label.toLowerCase().includes(query);
+
+      return matchesSearch && (noSideProduct || withSideProduct);
+    });
+  }, [menuItemsById, searchQuery, selectedCategory]);
 
   const categoryCounts = useMemo(
     () =>
       categories.reduce(
         (counts, category) => ({
           ...counts,
-          [category]: menuItems.filter((item) => item.category === category).length,
+          [category]:
+            category === "Wings"
+              ? WING_ORDER_CHOICES.length
+              : menuItems.filter((item) => item.category === category).length,
         }),
         {} as Record<string, number>
       ),
@@ -178,6 +238,18 @@ export default function CustomerOrderingPage() {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+  const displayedItemCount =
+    selectedCategory === "Wings" ? visibleWingChoices.length : filteredItems.length;
+  const customizingNoSideProduct = customizingWing
+    ? menuItemsById.get(customizingWing.noSideProductId)
+    : undefined;
+  const customizingWithSideProduct = customizingWing
+    ? menuItemsById.get(customizingWing.withSideProductId)
+    : undefined;
+  const selectedWingProduct = customizingWing
+    ? getWingProduct(customizingWing, selectedWingSide)
+    : undefined;
+  const selectedWingPrice = selectedWingProduct?.price ?? 0;
 
   function changeQuantity(itemId: string, amount: number) {
     const product = menuItems.find((item) => item.id === itemId);
@@ -190,6 +262,100 @@ export default function CustomerOrderingPage() {
         [itemId]: nextQuantity,
       };
     });
+  }
+
+  function openWingCustomizer(choice: WingOrderChoice) {
+    setCustomizingWing(choice);
+    setSelectedWingFlavor("Buffalo");
+    setSelectedWingSide("No side");
+    setSelectedFriesFlavor("Plain");
+  }
+
+  function getWingProduct(choice: WingOrderChoice, side: WingSide) {
+    return menuItemsById.get(
+      side === "No side" ? choice.noSideProductId : choice.withSideProductId
+    );
+  }
+
+  function getWingChoiceQuantity(choice: WingOrderChoice) {
+    return wingCartItems
+      .filter(
+        (item) =>
+          item.id === choice.noSideProductId ||
+          item.id === choice.withSideProductId
+      )
+      .reduce((sum, item) => sum + item.quantity, 0);
+  }
+
+  function addCustomizedWing() {
+    if (!customizingWing) return;
+
+    const product = getWingProduct(customizingWing, selectedWingSide);
+    if (!product?.isAvailable) {
+      toast.error("This wings option is not available.");
+      return;
+    }
+
+    const friesFlavor =
+      selectedWingSide === "Fries" ? selectedFriesFlavor : undefined;
+    const cartItemId = [
+      product.id,
+      selectedWingFlavor,
+      selectedWingSide,
+      friesFlavor ?? "",
+    ].join("|");
+    const sideLabel =
+      selectedWingSide === "No side"
+        ? "No side"
+        : selectedWingSide === "Fries"
+          ? `${friesFlavor} Fries`
+          : selectedWingSide;
+    const displayName = `${customizingWing.label} (${selectedWingFlavor}, ${sideLabel})`;
+
+    setWingCartItems((current) => {
+      const existing = current.find((item) => item.cartItemId === cartItemId);
+      if (existing) {
+        return current.map((item) =>
+          item.cartItemId === cartItemId
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+
+      return [
+        ...current,
+        {
+          ...product,
+          cartItemId,
+          quantity: 1,
+          displayName,
+          customization: {
+            wingFlavor: selectedWingFlavor,
+            side: selectedWingSide,
+            friesFlavor,
+          },
+        },
+      ];
+    });
+    setCustomizingWing(null);
+    toast.success("Wings added");
+  }
+
+  function changeCartItemQuantity(item: SelectedItem, amount: number) {
+    if ("cartItemId" in item) {
+      setWingCartItems((current) =>
+        current
+          .map((cartItem) =>
+            cartItem.cartItemId === item.cartItemId
+              ? { ...cartItem, quantity: Math.max(0, cartItem.quantity + amount) }
+              : cartItem
+          )
+          .filter((cartItem) => cartItem.quantity > 0)
+      );
+      return;
+    }
+
+    changeQuantity(item.id, amount);
   }
 
   async function confirmLocation() {
@@ -247,6 +413,7 @@ export default function CustomerOrderingPage() {
       items: selectedItems.map((item) => ({
         productId: item.id,
         quantity: item.quantity,
+        ...("customization" in item ? { customization: item.customization } : {}),
       })),
     };
 
@@ -328,7 +495,7 @@ export default function CustomerOrderingPage() {
                 </h2>
               </div>
               <p className="text-sm text-muted-foreground">
-                {filteredItems.length} item{filteredItems.length === 1 ? "" : "s"}
+                {displayedItemCount} item{displayedItemCount === 1 ? "" : "s"}
               </p>
             </div>
 
@@ -346,11 +513,84 @@ export default function CustomerOrderingPage() {
                 ))
               ) : null}
 
-              {!isLoadingMenu && filteredItems.length === 0 ? (
+              {!isLoadingMenu &&
+              (selectedCategory === "Wings"
+                ? visibleWingChoices.length === 0
+                : filteredItems.length === 0) ? (
                 <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground sm:col-span-2">
                   No menu items found.
                 </div>
               ) : null}
+
+              {!isLoadingMenu && selectedCategory === "Wings"
+                ? visibleWingChoices.map((choice) => {
+                    const noSideProduct = menuItemsById.get(choice.noSideProductId);
+                    const withSideProduct = menuItemsById.get(choice.withSideProductId);
+                    const isAvailable =
+                      Boolean(noSideProduct?.isAvailable) ||
+                      Boolean(withSideProduct?.isAvailable);
+                    const quantity = getWingChoiceQuantity(choice);
+
+                    return (
+                      <div
+                        key={choice.key}
+                        className={`grid min-h-44 grid-cols-[1fr_128px] gap-3 overflow-hidden rounded-lg border bg-card p-4 shadow-sm transition ${
+                          isAvailable
+                            ? "hover:border-primary/40 hover:shadow-md"
+                            : "opacity-55 grayscale"
+                        }`}
+                      >
+                        <div className="grid content-between gap-4">
+                          <div className="grid gap-2">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-lg font-bold leading-tight">
+                                  {choice.label}
+                                </p>
+                                {!isAvailable ? (
+                                  <Badge variant="secondary">Not available</Badge>
+                                ) : null}
+                              </div>
+                              <p className="mt-1 font-semibold">
+                                {formatCurrency(choice.noSidePrice)}
+                                <span className="text-sm font-normal text-muted-foreground">
+                                  {" "}
+                                  no side / {formatCurrency(choice.withSidePrice)} with side
+                                </span>
+                              </p>
+                            </div>
+                            <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">
+                              Choose side, fries flavor, and wings flavor.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="min-w-8 text-center text-lg font-bold">
+                              {quantity}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => openWingCustomizer(choice)}
+                              disabled={!isAvailable}
+                            >
+                              Customize
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="relative self-center">
+                          <div className="aspect-square rounded-full bg-primary/10" />
+                          <Image
+                            src="/menu/wings.svg"
+                            alt={choice.label}
+                            width={132}
+                            height={96}
+                            className="absolute inset-0 m-auto h-28 w-32 object-contain drop-shadow-sm"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                : null}
 
               {!isLoadingMenu ? filteredItems.map((item) => {
                 const quantity = quantities[item.id] ?? 0;
@@ -446,6 +686,7 @@ export default function CustomerOrderingPage() {
                     type="button"
                     onClick={() => {
                       setQuantities({});
+                      setWingCartItems([]);
                       setStep("menu");
                       setOrderNumber("");
                     }}
@@ -465,18 +706,48 @@ export default function CustomerOrderingPage() {
                           <div className="flex min-w-0 items-center gap-3">
                             <Image
                               src={item.imageSrc}
-                              alt={item.name}
+                              alt={item.displayName}
                               width={44}
                               height={44}
                               className="size-11 shrink-0 rounded-lg border bg-muted object-contain p-1"
                             />
-                            <span className="truncate">
-                              {item.quantity}x {item.name}
-                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">
+                                {item.displayName}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatCurrency(item.price)} each
+                              </p>
+                            </div>
                           </div>
-                          <span className="font-medium">
-                            {formatCurrency(item.price * item.quantity)}
-                          </span>
+                          <div className="grid justify-items-end gap-1">
+                            <span className="font-medium">
+                              {formatCurrency(item.price * item.quantity)}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                onClick={() => changeCartItemQuantity(item, -1)}
+                                aria-label={`Remove ${item.displayName}`}
+                              >
+                                <Minus className="size-3.5" />
+                              </Button>
+                              <span className="min-w-5 text-center text-xs font-semibold">
+                                {item.quantity}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                onClick={() => changeCartItemQuantity(item, 1)}
+                                aria-label={`Add ${item.displayName}`}
+                              >
+                                <Plus className="size-3.5" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -644,6 +915,108 @@ export default function CustomerOrderingPage() {
           </Card>
         </aside>
       </div>
+
+      <Dialog
+        open={customizingWing !== null}
+        onOpenChange={(open) => !open && setCustomizingWing(null)}
+      >
+        <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{customizingWing?.label ?? "Customize Wings"}</DialogTitle>
+          </DialogHeader>
+
+          {customizingWing ? (
+            <div className="grid gap-5">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-muted-foreground">Price</span>
+                  <span className="text-2xl font-bold">
+                    {formatCurrency(selectedWingPrice)}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatCurrency(customizingWing.noSidePrice)} no side /{" "}
+                  {formatCurrency(customizingWing.withSidePrice)} with side
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Side</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(["No side", "Java Rice", "Plain Rice", "Fries"] as WingSide[]).map(
+                    (side) => {
+                      const product =
+                        side === "No side"
+                          ? customizingNoSideProduct
+                          : customizingWithSideProduct;
+                      const isDisabled = !product?.isAvailable;
+
+                      return (
+                        <Button
+                          key={side}
+                          type="button"
+                          variant={selectedWingSide === side ? "default" : "outline"}
+                          disabled={isDisabled}
+                          onClick={() => setSelectedWingSide(side)}
+                          className="justify-start"
+                        >
+                          {side}
+                        </Button>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+
+              {selectedWingSide === "Fries" ? (
+                <div className="grid gap-2">
+                  <Label>Fries flavor</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {FRIES_FLAVOR_OPTIONS.map((flavor) => (
+                      <Button
+                        key={flavor}
+                        type="button"
+                        variant={
+                          selectedFriesFlavor === flavor ? "default" : "outline"
+                        }
+                        onClick={() => setSelectedFriesFlavor(flavor)}
+                        className="justify-start"
+                      >
+                        {flavor}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid gap-2">
+                <Label>Wings flavor</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {WING_FLAVOR_OPTIONS.map((flavor) => (
+                    <Button
+                      key={flavor}
+                      type="button"
+                      variant={selectedWingFlavor === flavor ? "default" : "outline"}
+                      onClick={() => setSelectedWingFlavor(flavor)}
+                      className="justify-start whitespace-normal text-left"
+                    >
+                      {flavor}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={addCustomizedWing}
+                disabled={!selectedWingProduct?.isAvailable}
+              >
+                Add to order
+              </Button>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
