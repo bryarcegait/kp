@@ -69,7 +69,7 @@ export type FriesFlavor = (typeof FRIES_FLAVOR_OPTIONS)[number];
 export type WingOrderChoice = {
   key: string;
   label: string;
-  category: "Wings" | "Barkada Box" | "Bilao";
+  category: "Wings" | "Barkada Box" | "Bilao" | "Pasta";
   noSideProductId: string;
   withSideProductId?: string;
   noSidePrice: number;
@@ -133,6 +133,24 @@ export const WING_ORDER_CHOICES: WingOrderChoice[] = [
     withSidePrice: 147,
     includedFlavorCount: 1,
     supportsSides: true,
+  },
+  {
+    key: "carbonara-2pcs-wings",
+    label: "Carbonara with 2 pcs Wings",
+    category: "Pasta",
+    noSideProductId: "carbonara-2pcs-wings",
+    noSidePrice: 195,
+    includedFlavorCount: 1,
+    supportsSides: false,
+  },
+  {
+    key: "carbonara-4pcs-wings",
+    label: "Carbonara with 4 pcs Wings",
+    category: "Pasta",
+    noSideProductId: "carbonara-4pcs-wings",
+    noSidePrice: 250,
+    includedFlavorCount: 1,
+    supportsSides: false,
   },
   {
     key: "12pcs",

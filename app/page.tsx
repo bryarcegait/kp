@@ -131,7 +131,7 @@ export default function CustomerOrderingPage() {
     null
   );
   const [selectedWingFlavors, setSelectedWingFlavors] = useState<WingFlavor[]>([]);
-  const [selectedWingSide, setSelectedWingSide] = useState<WingSide>("No side");
+  const [selectedWingSide, setSelectedWingSide] = useState<WingSide>("Java Rice");
   const [selectedFriesFlavor, setSelectedFriesFlavor] =
     useState<FriesFlavor>("Plain");
   const [selectedCategory, setSelectedCategory] = useState("Wings");
@@ -253,10 +253,16 @@ export default function CustomerOrderingPage() {
         (counts, category) => ({
           ...counts,
           [category]:
-            WING_ORDER_CHOICES.some((choice) => choice.category === category)
-              ? WING_ORDER_CHOICES.filter((choice) => choice.category === category)
-                  .length
-              : menuItems.filter((item) => item.category === category).length,
+            WING_ORDER_CHOICES.filter((choice) => choice.category === category)
+              .length +
+            menuItems.filter((item) => {
+              const isCustomizableProduct = WING_ORDER_CHOICES.some(
+                (choice) =>
+                  choice.noSideProductId === item.id ||
+                  choice.withSideProductId === item.id
+              );
+              return item.category === category && !isCustomizableProduct;
+            }).length,
         }),
         {} as Record<string, number>
       ),
@@ -304,8 +310,15 @@ export default function CustomerOrderingPage() {
   function openWingCustomizer(choice: WingOrderChoice) {
     setCustomizingWing(choice);
     setSelectedWingFlavors([]);
-    setSelectedWingSide("No side");
+    setSelectedWingSide(getDefaultWingSide(choice));
     setSelectedFriesFlavor("Plain");
+  }
+
+  function getDefaultWingSide(choice: WingOrderChoice): WingSide {
+    if (!choice.supportsSides || !choice.withSideProductId) return "No side";
+
+    const withSideProduct = menuItemsById.get(choice.withSideProductId);
+    return withSideProduct?.isAvailable ? "Java Rice" : "No side";
   }
 
   function getWingProduct(choice: WingOrderChoice, side: WingSide) {
@@ -377,7 +390,13 @@ export default function CustomerOrderingPage() {
           : normalizedSide;
     const extraLabel =
       extraFlavorCharge > 0 ? `, +${formatCurrency(extraFlavorCharge)} extra flavors` : "";
-    const displayName = `${customizingWing.label} (${selectedWingFlavors.join(" / ")}, ${sideLabel}${extraLabel})`;
+    const customizationLabel = [
+      selectedWingFlavors.join(" / "),
+      customizingWing.supportsSides ? sideLabel : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const displayName = `${customizingWing.label} (${customizationLabel}${extraLabel})`;
 
     setWingCartItems((current) => {
       const existing = current.find((item) => item.cartItemId === cartItemId);
@@ -527,34 +546,31 @@ export default function CustomerOrderingPage() {
 
     return (
       <div className="overflow-hidden rounded-lg border bg-card">
-        <div className="hidden grid-cols-[minmax(0,1fr)_4.75rem_4.75rem_5.25rem] gap-2 border-b bg-muted/40 px-3 py-2 text-[0.68rem] font-bold uppercase tracking-wide text-muted-foreground sm:grid">
-          <span>Product</span>
-          <span className="text-right">Amount</span>
-          <span className="text-center">Qty</span>
-          <span className="text-right">Total</span>
+        <div className="border-b bg-muted/40 px-3 py-2 text-[0.68rem] font-bold uppercase tracking-wide text-muted-foreground">
+          Product
         </div>
         <div className="divide-y">
           {selectedItems.map((item) => (
             <div
               key={"cartItemId" in item ? item.cartItemId : item.id}
-              className="grid gap-3 px-3 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_4.75rem_4.75rem_5.25rem] sm:gap-2"
+              className="grid gap-3 px-3 py-3 text-sm"
             >
               <div className="min-w-0">
-                <p className="break-words font-medium leading-snug [overflow-wrap:anywhere]">
+                <p className="truncate font-medium leading-snug" title={item.displayName}>
                   {item.displayName}
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-2 sm:contents">
-                <div className="grid gap-1 sm:block">
-                  <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground sm:hidden">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="grid gap-1">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">
                     Amount
                   </span>
-                  <span className="text-muted-foreground sm:block sm:text-right">
+                  <span className="text-muted-foreground">
                     {formatCurrency(item.price)}
                   </span>
                 </div>
                 <div className="grid justify-items-center gap-1">
-                  <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground sm:hidden">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">
                     Qty
                   </span>
                   {editable ? (
@@ -585,11 +601,11 @@ export default function CustomerOrderingPage() {
                     <span className="font-semibold">{item.quantity}</span>
                   )}
                 </div>
-                <div className="grid justify-items-end gap-1 sm:block">
-                  <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground sm:hidden">
+                <div className="grid justify-items-end gap-1">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">
                     Total
                   </span>
-                  <span className="font-semibold sm:block sm:text-right">
+                  <span className="font-semibold">
                     {formatCurrency(item.price * item.quantity)}
                   </span>
                 </div>
@@ -1022,7 +1038,7 @@ export default function CustomerOrderingPage() {
                         <div className="relative self-center">
                           <div className="aspect-square rounded-full bg-primary/10" />
                           <Image
-                            src="/menu/wings.svg"
+                            src={noSideProduct?.imageSrc ?? "/menu/wings.svg"}
                             alt={choice.label}
                             width={132}
                             height={96}
