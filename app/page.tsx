@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type OrderStep = "menu" | "review" | "details" | "sent";
+type OrderStep = "menu" | "details" | "sent";
 type OrderType = "deliver" | "pickup" | "dine-in";
 type ScheduleType = "now" | "later";
 
@@ -323,25 +323,10 @@ export default function CustomerOrderingPage() {
                     <Button
                       type="button"
                       disabled={selectedItems.length === 0}
-                      onClick={() => setStep("review")}
+                      onClick={() => setStep("details")}
                     >
-                      Review order
+                      Ready to send order
                     </Button>
-                  ) : null}
-
-                  {step === "review" ? (
-                    <div className="grid gap-2">
-                      <Button type="button" onClick={() => setStep("details")}>
-                        Ready to send order
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setStep("menu")}
-                      >
-                        Edit items
-                      </Button>
-                    </div>
                   ) : null}
 
                   {step === "details" ? (
@@ -470,9 +455,9 @@ export default function CustomerOrderingPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => setStep("review")}
+                          onClick={() => setStep("menu")}
                         >
-                          Back to review
+                          Back to order
                         </Button>
                       </div>
                     </div>
