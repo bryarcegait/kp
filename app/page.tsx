@@ -47,9 +47,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type OrderStep = "menu" | "details" | "sent";
 type OrderType = "deliver" | "pickup" | "dine-in";
+type PaymentMethod = "cash" | "gcash" | "bank-transfer";
 type ScheduleType = "now" | "later";
 
 type DeliveryLocation = {
@@ -75,6 +77,12 @@ const ORDER_TYPES: { value: OrderType; label: string }[] = [
   { value: "deliver", label: "Deliver" },
   { value: "pickup", label: "Pick-up" },
   { value: "dine-in", label: "Dine-in" },
+];
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: "cash", label: "Cash" },
+  { value: "gcash", label: "GCASH" },
+  { value: "bank-transfer", label: "Bank Transfer" },
 ];
 
 function todayInputDate() {
@@ -132,6 +140,8 @@ export default function CustomerOrderingPage() {
   const [customerName, setCustomerName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [orderType, setOrderType] = useState<OrderType>("pickup");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [customerNote, setCustomerNote] = useState("");
   const [scheduleType, setScheduleType] = useState<ScheduleType>("now");
   const [orderDate, setOrderDate] = useState(todayInputDate());
   const [orderTime, setOrderTime] = useState(currentInputTime());
@@ -458,11 +468,29 @@ export default function CustomerOrderingPage() {
       toast.error("Please choose at least one item.");
       return;
     }
+    if (!customerName.trim()) {
+      toast.error("Name is required.");
+      return;
+    }
+    if (!phoneNumber.trim()) {
+      toast.error("Phone number is required.");
+      return;
+    }
+    if (scheduleType === "later" && (!orderDate || !orderTime)) {
+      toast.error("Please choose the order date and time.");
+      return;
+    }
+    if (orderType === "deliver" && !deliveryLocation) {
+      toast.error("Please confirm your delivery location.");
+      return;
+    }
 
     const payload: CustomerOrderPayload = {
-      customerName,
-      phoneNumber,
+      customerName: customerName.trim(),
+      phoneNumber: phoneNumber.trim(),
       orderType,
+      paymentMethod,
+      customerNote: customerNote.trim(),
       scheduleType,
       scheduledFor: getOrderSchedule(scheduleType, orderDate, orderTime),
       deliveryAddress: deliveryLocation?.label,
@@ -497,62 +525,80 @@ export default function CustomerOrderingPage() {
       );
     }
 
-    return selectedItems.map((item) => (
-      <div
-        key={"cartItemId" in item ? item.cartItemId : item.id}
-        className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-lg border bg-muted/20 p-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center"
-      >
-        <Image
-          src={item.imageSrc}
-          alt={item.displayName}
-          width={48}
-          height={48}
-          className="size-12 shrink-0 rounded-lg border bg-muted object-contain p-1"
-        />
-        <div className="min-w-0">
-          <p className="break-words font-medium leading-snug [overflow-wrap:anywhere]">
-            {item.displayName}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {formatCurrency(item.price)} each
-          </p>
+    return (
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <div className="hidden grid-cols-[minmax(0,1fr)_4.75rem_4.75rem_5.25rem] gap-2 border-b bg-muted/40 px-3 py-2 text-[0.68rem] font-bold uppercase tracking-wide text-muted-foreground sm:grid">
+          <span>Product</span>
+          <span className="text-right">Amount</span>
+          <span className="text-center">Qty</span>
+          <span className="text-right">Total</span>
         </div>
-        <div className="col-start-2 grid justify-items-start gap-1 sm:col-start-auto sm:justify-items-end">
-          <span className="font-medium">
-            {formatCurrency(item.price * item.quantity)}
-          </span>
-          {editable ? (
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                onClick={() => changeCartItemQuantity(item, -1)}
-                aria-label={`Remove ${item.displayName}`}
-              >
-                <Minus className="size-3.5" />
-              </Button>
-              <span className="min-w-5 text-center text-xs font-semibold">
-                {item.quantity}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                onClick={() => changeCartItemQuantity(item, 1)}
-                aria-label={`Add ${item.displayName}`}
-              >
-                <Plus className="size-3.5" />
-              </Button>
+        <div className="divide-y">
+          {selectedItems.map((item) => (
+            <div
+              key={"cartItemId" in item ? item.cartItemId : item.id}
+              className="grid gap-3 px-3 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_4.75rem_4.75rem_5.25rem] sm:gap-2"
+            >
+              <div className="min-w-0">
+                <p className="break-words font-medium leading-snug [overflow-wrap:anywhere]">
+                  {item.displayName}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:contents">
+                <div className="grid gap-1 sm:block">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground sm:hidden">
+                    Amount
+                  </span>
+                  <span className="text-muted-foreground sm:block sm:text-right">
+                    {formatCurrency(item.price)}
+                  </span>
+                </div>
+                <div className="grid justify-items-center gap-1">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground sm:hidden">
+                    Qty
+                  </span>
+                  {editable ? (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-xs"
+                        onClick={() => changeCartItemQuantity(item, -1)}
+                        aria-label={`Remove ${item.displayName}`}
+                      >
+                        <Minus className="size-3" />
+                      </Button>
+                      <span className="min-w-4 text-center text-xs font-semibold">
+                        {item.quantity}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-xs"
+                        onClick={() => changeCartItemQuantity(item, 1)}
+                        aria-label={`Add ${item.displayName}`}
+                      >
+                        <Plus className="size-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="font-semibold">{item.quantity}</span>
+                  )}
+                </div>
+                <div className="grid justify-items-end gap-1 sm:block">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground sm:hidden">
+                    Total
+                  </span>
+                  <span className="font-semibold sm:block sm:text-right">
+                    {formatCurrency(item.price * item.quantity)}
+                  </span>
+                </div>
+              </div>
             </div>
-          ) : (
-            <span className="text-xs font-semibold text-muted-foreground">
-              Qty {item.quantity}
-            </span>
-          )}
+          ))}
         </div>
       </div>
-    ));
+    );
   }
 
   function renderOrderTotal() {
@@ -609,7 +655,7 @@ export default function CustomerOrderingPage() {
                   }}
                 >
                   <div className="grid gap-2">
-                    <Label htmlFor="customerName">Name</Label>
+                    <Label htmlFor="customerName">Name *</Label>
                     <Input
                       id="customerName"
                       value={customerName}
@@ -619,7 +665,7 @@ export default function CustomerOrderingPage() {
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="phoneNumber">Phone number</Label>
+                    <Label htmlFor="phoneNumber">Phone number *</Label>
                     <Input
                       id="phoneNumber"
                       value={phoneNumber}
@@ -630,7 +676,7 @@ export default function CustomerOrderingPage() {
                   </div>
 
                   <div className="grid gap-2">
-                    <Label>Order type</Label>
+                    <Label>Order type *</Label>
                     <Select
                       value={orderType}
                       onValueChange={(value) => setOrderType(value as OrderType)}
@@ -649,7 +695,28 @@ export default function CustomerOrderingPage() {
                   </div>
 
                   <div className="grid gap-2">
-                    <Label>Time</Label>
+                    <Label>Payment Method *</Label>
+                    <Select
+                      value={paymentMethod}
+                      onValueChange={(value) =>
+                        setPaymentMethod(value as PaymentMethod)
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map((method) => (
+                          <SelectItem key={method.value} value={method.value}>
+                            {method.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label>Time *</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         type="button"
@@ -699,7 +766,7 @@ export default function CustomerOrderingPage() {
 
                   {orderType === "deliver" ? (
                     <div className="grid gap-2 rounded-lg border bg-muted/30 p-3">
-                      <Label>Delivery location</Label>
+                      <Label>Delivery location *</Label>
                       {deliveryLocation ? (
                         <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">
                           {deliveryLocation.label}
@@ -720,6 +787,18 @@ export default function CustomerOrderingPage() {
                       </Button>
                     </div>
                   ) : null}
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="customerNote">Customer note</Label>
+                    <Textarea
+                      id="customerNote"
+                      value={customerNote}
+                      onChange={(event) => setCustomerNote(event.target.value)}
+                      maxLength={1000}
+                      rows={3}
+                      placeholder="Optional instructions, landmarks, or requests"
+                    />
+                  </div>
 
                   <Button type="submit" disabled={isPending}>
                     {isPending ? "Sending..." : "Send order"}

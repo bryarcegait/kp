@@ -168,6 +168,8 @@ model CustomerOrder {
   customerName      String
   phoneNumber       String
   orderType         String
+  paymentMethod     String   @default("cash")
+  customerNote      String?  @db.Text
   scheduledFor      DateTime
   deliveryAddress   String?  @db.Text
   deliveryLatitude  Decimal? @db.Decimal(10, 7)

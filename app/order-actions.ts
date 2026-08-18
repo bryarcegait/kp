@@ -11,6 +11,7 @@ import {
 } from "@/lib/customer-menu";
 
 const orderTypeSchema = z.enum(["deliver", "pickup", "dine-in"]);
+const paymentMethodSchema = z.enum(["cash", "gcash", "bank-transfer"]);
 
 const customizationSchema = z
   .object({
@@ -30,6 +31,8 @@ const customerOrderSchema = z.object({
   customerName: z.string().trim().min(1, "Name is required").max(120),
   phoneNumber: z.string().trim().min(1, "Phone number is required").max(40),
   orderType: orderTypeSchema,
+  paymentMethod: paymentMethodSchema,
+  customerNote: z.string().trim().max(1000).optional().or(z.literal("")),
   scheduleType: z.enum(["now", "later"]),
   scheduledFor: z.string().trim().min(1),
   deliveryAddress: z.string().trim().max(500).optional(),
@@ -156,6 +159,8 @@ export async function createCustomerOrder(
       customerName: order.customerName,
       phoneNumber: order.phoneNumber,
       orderType: order.orderType,
+      paymentMethod: order.paymentMethod,
+      customerNote: order.customerNote || null,
       scheduledFor,
       deliveryAddress: order.deliveryAddress,
       deliveryLatitude: order.deliveryLatitude,
