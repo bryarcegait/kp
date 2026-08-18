@@ -21,6 +21,7 @@ export const WING_FLAVOR_OPTIONS = [
   "Buffalo",
   "Soy Honey Garlic",
   "Cheesy Wings",
+  "Spicy Cheesy Wings",
   "Creamy Garlic Mushroom",
   "Garlic Parmesan",
   "Caramelized Patis",
@@ -40,6 +41,7 @@ export const BEST_SELLER_WING_FLAVORS = [
 
 export const SPICY_WING_FLAVORS = [
   "Buffalo",
+  "Spicy Cheesy Wings",
   "Sriracha Garlic",
   "Spicy Korean Barbecue",
 ] as const;

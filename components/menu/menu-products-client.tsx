@@ -100,14 +100,18 @@ export function MenuProductsClient({ products }: { products: MenuProductRow[] })
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-sm lg:flex-row lg:items-center">
-        <Input
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search product or category"
-          className="lg:max-w-sm"
-        />
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1">
+      <div className="grid gap-3 rounded-lg border bg-card p-3 shadow-sm">
+        <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_auto] lg:items-center">
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search product or category"
+          />
+          <Button onClick={() => setDialogTarget("new")}>
+            <Plus className="size-4" /> Add Product
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
           {["All", ...categories].map((category) => (
             <Button
               key={category}
@@ -115,15 +119,11 @@ export function MenuProductsClient({ products }: { products: MenuProductRow[] })
               variant={categoryFilter === category ? "default" : "outline"}
               size="sm"
               onClick={() => setCategoryFilter(category)}
-              className="shrink-0"
             >
               {category}
             </Button>
           ))}
         </div>
-        <Button className="lg:ml-auto" onClick={() => setDialogTarget("new")}>
-          <Plus className="size-4" /> Add Product
-        </Button>
       </div>
 
       <div className="overflow-x-auto rounded-lg border bg-card">

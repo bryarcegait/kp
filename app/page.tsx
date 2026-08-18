@@ -122,9 +122,7 @@ export default function CustomerOrderingPage() {
   const [customizingWing, setCustomizingWing] = useState<WingOrderChoice | null>(
     null
   );
-  const [selectedWingFlavors, setSelectedWingFlavors] = useState<WingFlavor[]>([
-    "Plain",
-  ]);
+  const [selectedWingFlavors, setSelectedWingFlavors] = useState<WingFlavor[]>([]);
   const [selectedWingSide, setSelectedWingSide] = useState<WingSide>("No side");
   const [selectedFriesFlavor, setSelectedFriesFlavor] =
     useState<FriesFlavor>("Plain");
@@ -289,7 +287,7 @@ export default function CustomerOrderingPage() {
 
   function openWingCustomizer(choice: WingOrderChoice) {
     setCustomizingWing(choice);
-    setSelectedWingFlavors(["Plain"]);
+    setSelectedWingFlavors([]);
     setSelectedWingSide("No side");
     setSelectedFriesFlavor("Plain");
   }
@@ -492,9 +490,9 @@ export default function CustomerOrderingPage() {
             <Image
               src="/kanto-logo.png"
               alt="Kanto't Pakpakan"
-              width={56}
-              height={56}
-              className="size-14 rounded-lg bg-primary object-contain p-1"
+              width={86}
+              height={62}
+              className="h-16 w-24 object-contain"
             />
             <div>
               <p className="text-sm font-medium text-primary">Kanto&apos;t Pakpakan</p>
@@ -1097,7 +1095,10 @@ export default function CustomerOrderingPage() {
               <Button
                 type="button"
                 onClick={addCustomizedWing}
-                disabled={!selectedWingProduct?.isAvailable}
+                disabled={
+                  !selectedWingProduct?.isAvailable ||
+                  selectedWingFlavors.length === 0
+                }
               >
                 Add to order
               </Button>
