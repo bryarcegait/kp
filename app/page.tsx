@@ -2,13 +2,24 @@
 
 import Image from "next/image";
 import { useMemo, useState, useTransition } from "react";
-import { CalendarClock, LocateFixed, Minus, Plus, ShoppingBag } from "lucide-react";
+import {
+  CalendarClock,
+  LocateFixed,
+  Minus,
+  Plus,
+  Search,
+  ShoppingBag,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   createCustomerOrder,
   type CustomerOrderPayload,
 } from "@/app/order-actions";
-import { SILOG_MEALS } from "@/lib/customer-menu";
+import {
+  CUSTOMER_MENU_CATEGORIES,
+  CUSTOMER_MENU_ITEMS,
+  type CustomerMenuCategory,
+} from "@/lib/customer-menu";
 import { formatCurrency } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,6 +89,9 @@ function getLocationLabel(data: {
 
 export default function CustomerOrderingPage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [selectedCategory, setSelectedCategory] =
+    useState<CustomerMenuCategory>("Silog");
+  const [searchQuery, setSearchQuery] = useState("");
   const [step, setStep] = useState<OrderStep>("menu");
   const [customerName, setCustomerName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -93,11 +107,39 @@ export default function CustomerOrderingPage() {
 
   const selectedItems = useMemo(
     () =>
-      SILOG_MEALS.map((item) => ({
+      CUSTOMER_MENU_ITEMS.map((item) => ({
         ...item,
         quantity: quantities[item.id] ?? 0,
       })).filter((item) => item.quantity > 0),
     [quantities]
+  );
+
+  const filteredItems = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return CUSTOMER_MENU_ITEMS.filter((item) => {
+      const matchesCategory = item.category === selectedCategory;
+      const matchesSearch =
+        query.length === 0 ||
+        item.name.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query);
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [searchQuery, selectedCategory]);
+
+  const categoryCounts = useMemo(
+    () =>
+      CUSTOMER_MENU_CATEGORIES.reduce(
+        (counts, category) => ({
+          ...counts,
+          [category]: CUSTOMER_MENU_ITEMS.filter(
+            (item) => item.category === category
+          ).length,
+        }),
+        {} as Record<CustomerMenuCategory, number>
+      ),
+    []
   );
   const totalAmount = selectedItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -205,41 +247,90 @@ export default function CustomerOrderingPage() {
             </div>
           </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-3">
-              <CardTitle>Silog Meals</CardTitle>
-              <Badge variant="secondary">{selectedItems.length} selected</Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {SILOG_MEALS.map((item) => {
-                  const quantity = quantities[item.id] ?? 0;
+          <div className="grid gap-4">
+            <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-sm sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search in menu"
+                  className="h-11 rounded-full bg-muted/50 pl-9"
+                />
+              </div>
+              <Badge variant="secondary" className="w-fit">
+                {selectedItems.length} selected
+              </Badge>
+            </div>
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="grid gap-3 rounded-lg border bg-card p-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
+            <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+              <div className="flex min-w-max gap-2">
+                {CUSTOMER_MENU_CATEGORIES.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setSelectedCategory(category)}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                      selectedCategory === category
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                    }`}
+                  >
+                    {category} ({categoryCounts[category]})
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-primary">
+                  Kanto&apos;t Pakpakan Menu
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  {selectedCategory}
+                </h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {filteredItems.length} item{filteredItems.length === 1 ? "" : "s"}
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {filteredItems.map((item) => {
+                const quantity = quantities[item.id] ?? 0;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="grid min-h-44 grid-cols-[1fr_128px] gap-3 overflow-hidden rounded-lg border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                  >
+                    <div className="grid content-between gap-4">
+                      <div className="grid gap-2">
                         <div>
-                          <p className="font-semibold">{item.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {item.category}
+                          <p className="text-lg font-bold leading-tight">
+                            {item.name}
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            {formatCurrency(item.price)}
                           </p>
                         </div>
-                        <p className="font-semibold">{formatCurrency(item.price)}</p>
+                        <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">
+                          {item.description}
+                        </p>
                       </div>
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           variant="outline"
                           size="icon-sm"
                           onClick={() => changeQuantity(item.id, -1)}
                           disabled={quantity === 0}
+                          aria-label={`Remove ${item.name}`}
                         >
                           <Minus className="size-4" />
                         </Button>
-                        <span className="min-w-10 text-center text-lg font-semibold">
+                        <span className="min-w-8 text-center text-lg font-bold">
                           {quantity}
                         </span>
                         <Button
@@ -247,16 +338,27 @@ export default function CustomerOrderingPage() {
                           variant="outline"
                           size="icon-sm"
                           onClick={() => changeQuantity(item.id, 1)}
+                          aria-label={`Add ${item.name}`}
                         >
                           <Plus className="size-4" />
                         </Button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                    <div className="relative self-center">
+                      <div className="aspect-square rounded-full bg-primary/10" />
+                      <Image
+                        src={item.imageSrc}
+                        alt={item.name}
+                        width={132}
+                        height={96}
+                        className="absolute inset-0 m-auto h-28 w-32 object-contain drop-shadow-sm"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
         <aside className="lg:sticky lg:top-4 lg:self-start">
@@ -293,11 +395,20 @@ export default function CustomerOrderingPage() {
                       selectedItems.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-start justify-between gap-3 text-sm"
+                          className="flex items-center justify-between gap-3 text-sm"
                         >
-                          <span>
-                            {item.quantity}x {item.name}
-                          </span>
+                          <div className="flex min-w-0 items-center gap-3">
+                            <Image
+                              src={item.imageSrc}
+                              alt={item.name}
+                              width={44}
+                              height={44}
+                              className="size-11 shrink-0 rounded-lg border bg-muted object-contain p-1"
+                            />
+                            <span className="truncate">
+                              {item.quantity}x {item.name}
+                            </span>
+                          </div>
                           <span className="font-medium">
                             {formatCurrency(item.price * item.quantity)}
                           </span>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Silog meal">
+  <rect width="320" height="220" rx="28" fill="#fff7ef"/>
+  <ellipse cx="164" cy="122" rx="118" ry="62" fill="#f3e2d0"/>
+  <ellipse cx="164" cy="116" rx="108" ry="56" fill="#fffaf4"/>
+  <circle cx="153" cy="105" r="40" fill="#f4efe5"/>
+  <path d="M126 97c15-13 39-14 55-3 7 5 7 16 0 21-15 12-41 13-56 1-6-5-6-14 1-19z" fill="#fffdf7"/>
+  <path d="M118 121c25 7 49 7 72 1" fill="none" stroke="#d8c8b6" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="222" cy="93" r="28" fill="#fffaf7"/>
+  <circle cx="222" cy="93" r="14" fill="#f2b71f"/>
+  <path d="M83 141c42-16 72-16 109 0" fill="none" stroke="#9d3f25" stroke-width="20" stroke-linecap="round"/>
+  <path d="M100 151c33-13 55-13 86 0" fill="none" stroke="#c65a36" stroke-width="14" stroke-linecap="round"/>
+  <path d="M100 151c28-3 54-2 83 2" fill="none" stroke="#7c2b19" stroke-width="3" stroke-linecap="round" opacity=".35"/>
+  <path d="M99 64c23-22 55-30 88-22" fill="none" stroke="#c45b29" stroke-width="7" stroke-linecap="round" opacity=".55"/>
+  <path d="M59 105c11-22 29-38 54-47" fill="none" stroke="#c45b29" stroke-width="7" stroke-linecap="round" opacity=".35"/>
+</svg>

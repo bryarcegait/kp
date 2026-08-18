@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Chicken wings">
+  <rect width="320" height="220" rx="28" fill="#fff6ee"/>
+  <ellipse cx="160" cy="132" rx="120" ry="58" fill="#ead7c2"/>
+  <ellipse cx="160" cy="126" rx="108" ry="52" fill="#fff9f2"/>
+  <path d="M77 110c20-34 61-37 88-13 16 14 18 43-1 59-27 22-70 7-86-22-4-7-5-16-1-24z" fill="#c75428"/>
+  <path d="M150 100c28-28 75-21 93 13 9 18 2 41-16 49-32 15-72-11-85-43-3-7 2-14 8-19z" fill="#d96c34"/>
+  <path d="M101 103c22-13 52-9 68 10" fill="none" stroke="#f4ab70" stroke-width="7" stroke-linecap="round" opacity=".8"/>
+  <path d="M164 105c26-14 57-8 74 13" fill="none" stroke="#f7b97e" stroke-width="7" stroke-linecap="round" opacity=".85"/>
+  <path d="M98 145c17 13 44 15 62 2" fill="none" stroke="#86351b" stroke-width="5" stroke-linecap="round" opacity=".35"/>
+  <circle cx="236" cy="77" r="11" fill="#f8e7d4"/>
+  <circle cx="253" cy="91" r="8" fill="#f8e7d4"/>
+  <path d="M214 70c23-12 44-8 57 9" fill="none" stroke="#bb4e26" stroke-width="7" stroke-linecap="round" opacity=".5"/>
+</svg>

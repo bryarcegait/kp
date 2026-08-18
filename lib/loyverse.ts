@@ -58,6 +58,7 @@ type LoyverseItemVariant = {
 type LoyverseItem = {
   id: string;
   item_name: string;
+  image_url?: string | null;
   deleted_at?: string | null;
   variants?: LoyverseItemVariant[];
 };
@@ -104,6 +105,7 @@ export type LoyverseCatalogProduct = {
   itemId: string;
   name: string;
   price: number;
+  imageUrl?: string;
 };
 
 export class LoyverseConfigError extends Error {
@@ -209,7 +211,15 @@ export async function getLoyverseCatalogProducts() {
 
     const variants = item.variants?.filter((variant) => !variant.deleted_at) ?? [];
     if (variants.length === 0) {
-      return [{ id: item.id, itemId: item.id, name: item.item_name, price: 0 }];
+      return [
+        {
+          id: item.id,
+          itemId: item.id,
+          name: item.item_name,
+          price: 0,
+          imageUrl: item.image_url ?? undefined,
+        },
+      ];
     }
 
     return variants.map((variant) => {
@@ -226,6 +236,7 @@ export async function getLoyverseCatalogProducts() {
         itemId: item.id,
         name: optionName ? `${item.item_name} (${optionName})` : item.item_name,
         price: variant.default_price ?? variant.price ?? 0,
+        imageUrl: item.image_url ?? undefined,
       };
     });
   });
