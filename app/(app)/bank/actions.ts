@@ -136,10 +136,10 @@ export async function recordDailyCashTransfer(
   }
 
   const businessDateInput = parseInputDate(parsed.data.businessDate);
-  if (businessDateInput <= getTodayInputDate()) {
+  if (businessDateInput < getTodayInputDate()) {
     return {
       error:
-        "Bank transfer recording starts tomorrow. Use today's cash on hand as tomorrow's transfer basis.",
+        "Bank transfer cannot be recorded for past dates.",
     };
   }
 

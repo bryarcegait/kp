@@ -277,8 +277,7 @@ function CashTransferForm({
       ) : null}
       {!canRecordCashTransfer ? (
         <p className="text-sm text-muted-foreground">
-          Bank transfer recording starts tomorrow. Today&apos;s cash on hand will
-          be used for tomorrow&apos;s transfer.
+          Bank transfer cannot be recorded for past dates.
         </p>
       ) : null}
     </form>

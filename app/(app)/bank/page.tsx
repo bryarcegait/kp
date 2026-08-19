@@ -85,7 +85,7 @@ export default async function BankPage({
       return parts;
     }, {});
   const today = `${todayInputDate.year}-${todayInputDate.month}-${todayInputDate.day}`;
-  const canRecordCashTransfer = selectedDate > today;
+  const canRecordCashTransfer = selectedDate >= today;
 
   const bankExpenseRows: BankExpenseRow[] = bankExpenses.map((entry) => ({
     id: entry.id,
