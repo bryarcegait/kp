@@ -205,39 +205,72 @@
 
   .kp-kitchen-loader__wing {
     position: absolute;
-    width: 2rem;
-    height: 1.15rem;
-    border-radius: 70% 42% 70% 42%;
-    background:
-      radial-gradient(circle at 78% 55%, var(--card) 0 0.18rem, transparent 0.2rem),
-      linear-gradient(135deg, #f3a25f 0%, var(--primary) 58%, #7f1021 100%);
-    box-shadow: inset -0.2rem -0.12rem 0 color-mix(in srgb, #7f1021 34%, transparent);
+    background: linear-gradient(135deg, #f6aa60 0%, var(--primary) 54%, #7f1021 100%);
+    box-shadow:
+      inset -0.18rem -0.14rem 0 color-mix(in srgb, #7f1021 34%, transparent),
+      inset 0.18rem 0.12rem 0 color-mix(in srgb, #fff0dc 28%, transparent);
   }
 
+  .kp-kitchen-loader__wing::before,
   .kp-kitchen-loader__wing::after {
     content: "";
     position: absolute;
-    right: -0.45rem;
-    top: 0.22rem;
-    width: 0.72rem;
-    height: 0.48rem;
-    border-radius: 999px;
     background: #fff7f1;
     box-shadow: inset -0.08rem -0.04rem 0 color-mix(in srgb, var(--primary) 30%, transparent);
   }
 
   .kp-kitchen-loader__wing--one {
-    left: 2.1rem;
+    left: 2rem;
     top: 2.05rem;
+    width: 2.25rem;
+    height: 1.12rem;
+    border-radius: 62% 42% 54% 44%;
     animation: kp-wing-toss-one 1.1s ease-in-out infinite;
   }
 
+  .kp-kitchen-loader__wing--one::before {
+    left: -0.48rem;
+    top: 0.42rem;
+    width: 0.78rem;
+    height: 0.32rem;
+    border-radius: 999px;
+    transform: rotate(4deg);
+  }
+
+  .kp-kitchen-loader__wing--one::after {
+    left: -0.78rem;
+    top: 0.32rem;
+    width: 0.48rem;
+    height: 0.52rem;
+    border-radius: 999px;
+  }
+
   .kp-kitchen-loader__wing--two {
-    right: 2.05rem;
-    top: 2.45rem;
-    transform: scaleX(-1);
+    right: 1.95rem;
+    top: 2.28rem;
+    width: 2.15rem;
+    height: 1.02rem;
+    border-radius: 70% 32% 72% 34%;
+    transform: rotate(8deg);
     animation: kp-wing-toss-two 1.1s ease-in-out infinite;
     animation-delay: -0.55s;
+  }
+
+  .kp-kitchen-loader__wing--two::before {
+    right: 0.28rem;
+    top: 0.18rem;
+    width: 0.46rem;
+    height: 0.34rem;
+    border-radius: 999px;
+  }
+
+  .kp-kitchen-loader__wing--two::after {
+    right: -0.28rem;
+    top: 0.36rem;
+    width: 0.76rem;
+    height: 0.42rem;
+    border-radius: 999px;
+    transform: rotate(-8deg);
   }
 
   .kp-kitchen-loader__flame {
@@ -309,10 +342,10 @@
 @keyframes kp-wing-toss-two {
   0%,
   100% {
-    transform: translateY(0) scaleX(-1) rotate(-10deg);
+    transform: translateY(0) rotate(8deg);
   }
   50% {
-    transform: translateY(-0.65rem) scaleX(-1) rotate(12deg);
+    transform: translateY(-0.65rem) rotate(-12deg);
   }
 }
 
