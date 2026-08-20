@@ -63,6 +63,12 @@ type LoyverseItem = {
   variants?: LoyverseItemVariant[];
 };
 
+type LoyverseStore = {
+  id: string;
+  name: string;
+  deleted_at?: string | null;
+};
+
 type LoyverseReceipt = {
   receipt_number: string;
   receipt_type: "SALE" | "REFUND";
@@ -414,26 +420,86 @@ type LoyverseOrderPayload = {
   }[];
 };
 
-function getRequiredEnv(name: string) {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is not configured.`);
-  return value;
+function normalizeLoyverseName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-function getPaymentTypeId(paymentMethod: LoyverseOrderPaymentMethod) {
+async function getStoreId() {
+  if (process.env.LOYVERSE_STORE_ID) return process.env.LOYVERSE_STORE_ID;
+
+  const stores = await fetchAll<LoyverseStore, "stores">(
+    "/stores",
+    "stores",
+    new URLSearchParams()
+  );
+  const store = stores.find((item) => !item.deleted_at);
+
+  if (!store) {
+    throw new Error(
+      "No active Loyverse store found. Configure LOYVERSE_STORE_ID."
+    );
+  }
+
+  return store.id;
+}
+
+function getPaymentTypeEnvName(paymentMethod: LoyverseOrderPaymentMethod) {
+  if (paymentMethod === "cash") return "LOYVERSE_CASH_PAYMENT_TYPE_ID";
+  if (paymentMethod === "gcash") return "LOYVERSE_GCASH_PAYMENT_TYPE_ID";
+  return "LOYVERSE_BANK_TRANSFER_PAYMENT_TYPE_ID";
+}
+
+function matchesPaymentMethod(
+  paymentType: LoyversePaymentType,
+  paymentMethod: LoyverseOrderPaymentMethod
+) {
+  const normalizedName = normalizeLoyverseName(paymentType.name);
+
   if (paymentMethod === "cash") {
-    return getRequiredEnv("LOYVERSE_CASH_PAYMENT_TYPE_ID");
+    return paymentType.type === "CASH" || normalizedName === "cash";
   }
+
   if (paymentMethod === "gcash") {
-    return getRequiredEnv("LOYVERSE_GCASH_PAYMENT_TYPE_ID");
+    return normalizedName.includes("gcash") || paymentType.type === "NONINTEGRATEDCARD";
   }
-  return getRequiredEnv("LOYVERSE_BANK_TRANSFER_PAYMENT_TYPE_ID");
+
+  return (
+    normalizedName.includes("banktransfer") ||
+    (normalizedName.includes("bank") && normalizedName.includes("transfer")) ||
+    paymentType.type === "NONINTEGRATEDCARD"
+  );
+}
+
+async function getPaymentTypeId(paymentMethod: LoyverseOrderPaymentMethod) {
+  const envName = getPaymentTypeEnvName(paymentMethod);
+  if (process.env[envName]) return process.env[envName];
+
+  const paymentTypes = await fetchAll<LoyversePaymentType, "payment_types">(
+    "/payment_types",
+    "payment_types",
+    new URLSearchParams()
+  );
+  const paymentType = paymentTypes.find((type) =>
+    matchesPaymentMethod(type, paymentMethod)
+  );
+
+  if (!paymentType) {
+    throw new Error(
+      `No Loyverse payment type matched ${paymentMethod}. Configure ${envName}.`
+    );
+  }
+
+  return paymentType.id;
 }
 
 export async function createLoyverseReceiptForOrder(order: LoyverseOrderPayload) {
-  const storeId = getRequiredEnv("LOYVERSE_STORE_ID");
+  const storeId = await getStoreId();
   const employeeId = process.env.LOYVERSE_EMPLOYEE_ID;
-  const paymentTypeId = getPaymentTypeId(order.paymentMethod);
+  const paymentTypeId = await getPaymentTypeId(order.paymentMethod);
+  const totalAmount = order.items.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0
+  );
   const noteParts = [
     `KP online order ${order.orderNumber}`,
     `Customer: ${order.customerName}`,
@@ -462,6 +528,7 @@ export async function createLoyverseReceiptForOrder(order: LoyverseOrderPayload)
         payments: [
           {
             payment_type_id: paymentTypeId,
+            money_amount: totalAmount,
             paid_at: new Date().toISOString(),
           },
         ],
