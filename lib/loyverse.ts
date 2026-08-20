@@ -149,6 +149,31 @@ async function loyverseFetch<T>(path: string, params?: URLSearchParams) {
   return (await response.json()) as T;
 }
 
+async function loyverseRequest<T>(
+  path: string,
+  init: Omit<RequestInit, "headers"> & { body?: string }
+) {
+  const token = process.env.LOYVERSE_ACCESS_TOKEN;
+  if (!token) throw new LoyverseConfigError();
+
+  const response = await fetch(`${LOYVERSE_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    throw new Error(`Loyverse API request failed (${response.status}): ${details}`);
+  }
+
+  return (await response.json()) as T;
+}
+
 async function fetchAll<TItem, TKey extends string>(
   path: string,
   collectionKey: TKey,
@@ -365,4 +390,84 @@ export async function saveLoyverseDailyReport(date: Date | string = new Date()) 
       fetchedAt: new Date(),
     },
   });
+}
+
+type LoyverseReceiptCreateResponse = {
+  receipt_number: string;
+};
+
+type LoyverseOrderPaymentMethod = "cash" | "gcash" | "bank-transfer";
+
+type LoyverseOrderPayload = {
+  orderNumber: string;
+  customerName: string;
+  phoneNumber: string;
+  paymentMethod: LoyverseOrderPaymentMethod;
+  scheduledFor: Date;
+  orderType: string;
+  customerNote?: string | null;
+  items: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+  }[];
+};
+
+function getRequiredEnv(name: string) {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not configured.`);
+  return value;
+}
+
+function getPaymentTypeId(paymentMethod: LoyverseOrderPaymentMethod) {
+  if (paymentMethod === "cash") {
+    return getRequiredEnv("LOYVERSE_CASH_PAYMENT_TYPE_ID");
+  }
+  if (paymentMethod === "gcash") {
+    return getRequiredEnv("LOYVERSE_GCASH_PAYMENT_TYPE_ID");
+  }
+  return getRequiredEnv("LOYVERSE_BANK_TRANSFER_PAYMENT_TYPE_ID");
+}
+
+export async function createLoyverseReceiptForOrder(order: LoyverseOrderPayload) {
+  const storeId = getRequiredEnv("LOYVERSE_STORE_ID");
+  const employeeId = process.env.LOYVERSE_EMPLOYEE_ID;
+  const paymentTypeId = getPaymentTypeId(order.paymentMethod);
+  const noteParts = [
+    `KP online order ${order.orderNumber}`,
+    `Customer: ${order.customerName}`,
+    `Phone: ${order.phoneNumber}`,
+    `Order type: ${order.orderType}`,
+    order.customerNote ? `Note: ${order.customerNote}` : null,
+  ].filter(Boolean);
+
+  const receipt = await loyverseRequest<LoyverseReceiptCreateResponse>(
+    "/receipts",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        store_id: storeId,
+        ...(employeeId ? { employee_id: employeeId } : {}),
+        order: order.orderNumber,
+        source: "Kanto't Pakpakan Online Ordering",
+        receipt_date: order.scheduledFor.toISOString(),
+        note: noteParts.join("\n"),
+        line_items: order.items.map((item) => ({
+          variant_id: item.productId,
+          quantity: item.quantity,
+          price: item.unitPrice,
+          line_note: item.productName,
+        })),
+        payments: [
+          {
+            payment_type_id: paymentTypeId,
+            paid_at: new Date().toISOString(),
+          },
+        ],
+      }),
+    }
+  );
+
+  return receipt.receipt_number;
 }

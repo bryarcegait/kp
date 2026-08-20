@@ -67,6 +67,13 @@ export async function GET(request: NextRequest) {
             process.env.BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN
         ),
         loyverseToken: Boolean(process.env.LOYVERSE_ACCESS_TOKEN),
+        loyverseStoreId: Boolean(process.env.LOYVERSE_STORE_ID),
+        loyverseEmployeeId: Boolean(process.env.LOYVERSE_EMPLOYEE_ID),
+        loyversePaymentTypes: {
+          cash: Boolean(process.env.LOYVERSE_CASH_PAYMENT_TYPE_ID),
+          gcash: Boolean(process.env.LOYVERSE_GCASH_PAYMENT_TYPE_ID),
+          bankTransfer: Boolean(process.env.LOYVERSE_BANK_TRANSFER_PAYMENT_TYPE_ID),
+        },
       },
       database,
       data: {

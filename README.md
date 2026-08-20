@@ -29,6 +29,10 @@ Responsive management system built with Next.js, TypeScript, Tailwind CSS, shadc
    - `DATABASE_URL` — the TiDB connection string from step 2
    - `AUTH_SECRET` — generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
    - `BLOB_READ_WRITE_TOKEN` — from your Vercel project's Storage tab (Blob). Required in production for receipt and menu image uploads. The app also accepts Vercel's generated `BLOB_READ_WRITE_TOKEN_READ_WRITE_TOKEN`. Can be left empty for local dev; uploads will save to `public/uploads/` instead until it's set.
+   - `LOYVERSE_ACCESS_TOKEN` — Loyverse API token with receipt read/write and catalog read permissions.
+   - `LOYVERSE_STORE_ID` — Loyverse store used when sending online orders as receipts.
+   - `LOYVERSE_EMPLOYEE_ID` — optional Loyverse employee attached to online receipts.
+   - `LOYVERSE_CASH_PAYMENT_TYPE_ID`, `LOYVERSE_GCASH_PAYMENT_TYPE_ID`, `LOYVERSE_BANK_TRANSFER_PAYMENT_TYPE_ID` — Loyverse payment type IDs used when sending orders.
 
 4. **Push the schema and seed the database**
 

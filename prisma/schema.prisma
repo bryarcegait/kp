@@ -75,6 +75,7 @@ model User {
   schedules            EmployeeSchedule[]
   bankEntries          BankEntry[]
   loyaltyTransactions  LoyaltyTransaction[]
+  loyverseOrdersSent   CustomerOrder[]      @relation("LoyverseOrderSentBy")
 
   @@index([roleId])
   @@map("users")
@@ -185,28 +186,35 @@ model DailyPosReport {
 }
 
 model CustomerOrder {
-  id                String   @id @default(cuid())
-  orderNumber       String   @unique
-  customerId        String?
-  customerName      String
-  phoneNumber       String
-  orderType         String
-  paymentMethod     String   @default("cash")
-  customerNote      String?  @db.Text
-  scheduledFor      DateTime
-  deliveryAddress   String?  @db.Text
-  deliveryLatitude  Decimal? @db.Decimal(10, 7)
-  deliveryLongitude Decimal? @db.Decimal(10, 7)
-  totalAmount       Decimal  @db.Decimal(12, 2)
-  status            String   @default("pending")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                    String    @id @default(cuid())
+  orderNumber           String    @unique
+  customerId            String?
+  customerName          String
+  phoneNumber           String
+  orderType             String
+  paymentMethod         String    @default("cash")
+  customerNote          String?   @db.Text
+  scheduledFor          DateTime
+  deliveryAddress       String?   @db.Text
+  deliveryLatitude      Decimal?  @db.Decimal(10, 7)
+  deliveryLongitude     Decimal?  @db.Decimal(10, 7)
+  totalAmount           Decimal   @db.Decimal(12, 2)
+  status                String    @default("pending")
+  loyverseReceiptNumber String?   @unique
+  loyverseSyncedAt      DateTime?
+  loyverseSyncError     String?   @db.Text
+  loyverseSentById      String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   customer            Customer?            @relation(fields: [customerId], references: [id])
+  loyverseSentBy      User?                @relation("LoyverseOrderSentBy", fields: [loyverseSentById], references: [id])
   items               CustomerOrderItem[]
   loyaltyTransactions LoyaltyTransaction[]
 
   @@index([customerId])
+  @@index([loyverseSentById])
+  @@index([status])
   @@map("customer_orders")
 }
 
