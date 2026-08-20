@@ -15,6 +15,8 @@ import {
 import { toast } from "sonner";
 import {
   createCustomerOrder,
+  lookupCustomerByPhone,
+  type CreateCustomerOrderResult,
   type CustomerOrderPayload,
 } from "@/app/order-actions";
 import {
@@ -33,7 +35,7 @@ import {
   type WingOrderChoice,
   type WingSide,
 } from "@/lib/customer-menu";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,6 +124,43 @@ function getLocationLabel(data: {
   return parts.length > 0 ? parts.join(", ") : data.display_name;
 }
 
+function LoyaltyStampRow({ stamps }: { stamps: number }) {
+  const visibleStamps = Math.min(stamps, 10);
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {Array.from({ length: 10 }).map((_, index) => {
+        const isEarned = index < visibleStamps;
+        return (
+          <span
+            key={index}
+            className={`grid size-8 place-items-center rounded-full border ${
+              isEarned
+                ? "border-primary bg-primary/10"
+                : "border-dashed border-muted-foreground/35 bg-muted/30"
+            }`}
+          >
+            {isEarned ? (
+              <Image
+                src="/kanto-logo.png"
+                alt=""
+                width={24}
+                height={24}
+                className="size-6 object-contain"
+              />
+            ) : null}
+          </span>
+        );
+      })}
+      {stamps > 10 ? (
+        <span className="grid h-8 place-items-center rounded-full border bg-muted px-2 text-xs font-semibold">
+          +{stamps - 10}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export default function CustomerOrderingPage() {
   const [menuItems, setMenuItems] = useState<CustomerMenuProduct[]>([]);
   const [isLoadingMenu, setIsLoadingMenu] = useState(true);
@@ -139,6 +178,10 @@ export default function CustomerOrderingPage() {
   const [step, setStep] = useState<OrderStep>("menu");
   const [customerName, setCustomerName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [customerLookup, setCustomerLookup] =
+    useState<NonNullable<CreateCustomerOrderResult["loyalty"]> | null>(null);
+  const [customerLookupMessage, setCustomerLookupMessage] = useState("");
+  const [isCheckingCustomer, setIsCheckingCustomer] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>("pickup");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [customerNote, setCustomerNote] = useState("");
@@ -150,6 +193,8 @@ export default function CustomerOrderingPage() {
   const [isLocating, setIsLocating] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [orderNumber, setOrderNumber] = useState("");
+  const [orderLoyalty, setOrderLoyalty] =
+    useState<CreateCustomerOrderResult["loyalty"] | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -189,6 +234,51 @@ export default function CustomerOrderingPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [step]);
+
+  useEffect(() => {
+    const phone = phoneNumber.trim();
+    const digitCount = phone.replace(/\D/g, "").length;
+
+    if (digitCount < 10) {
+      return;
+    }
+
+    let isCancelled = false;
+    const timeout = window.setTimeout(async () => {
+      setIsCheckingCustomer(true);
+      const result = await lookupCustomerByPhone(phone);
+
+      if (isCancelled) return;
+
+      if (result.customer) {
+        setCustomerLookup({
+          customerName: result.customer.name,
+          isNewCustomer: false,
+          stampsEarned: 0,
+          currentStamps: result.customer.currentStamps,
+          nextRewardStamps: result.customer.nextRewardStamps,
+        });
+        setCustomerName(result.customer.name);
+        setCustomerLookupMessage(
+          result.customer.lastOrderAt
+            ? `Welcome back. Last order: ${formatDate(result.customer.lastOrderAt)}.`
+            : "Welcome back. Loyalty record found."
+        );
+      } else {
+        setCustomerLookupMessage(
+          result.error ??
+            "New cellphone number. We will save this number after checkout so you can earn points next time."
+        );
+      }
+
+      setIsCheckingCustomer(false);
+    }, 500);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [phoneNumber]);
 
   const categories = useMemo(() => {
     const liveCategories = Array.from(new Set(menuItems.map((item) => item.category)));
@@ -530,6 +620,7 @@ export default function CustomerOrderingPage() {
       }
 
       setOrderNumber(result.orderNumber ?? "");
+      setOrderLoyalty(result.loyalty ?? null);
       setStep("sent");
       toast.success("Order sent");
     });
@@ -671,22 +762,46 @@ export default function CustomerOrderingPage() {
                   }}
                 >
                   <div className="grid gap-2">
+                    <Label htmlFor="phoneNumber">Cellphone number *</Label>
+                    <Input
+                      id="phoneNumber"
+                      value={phoneNumber}
+                      onChange={(event) => {
+                        setPhoneNumber(event.target.value);
+                        setCustomerLookup(null);
+                        setCustomerLookupMessage("");
+                        setIsCheckingCustomer(false);
+                      }}
+                      inputMode="tel"
+                      autoComplete="tel"
+                      required
+                    />
+                    {isCheckingCustomer || customerLookupMessage ? (
+                      <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
+                        <p className="font-medium">
+                          {isCheckingCustomer ? "Checking loyalty record..." : customerLookupMessage}
+                        </p>
+                        {customerLookup ? (
+                          <div className="grid gap-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-muted-foreground">Current stamps</span>
+                              <span className="font-semibold">
+                                {customerLookup.currentStamps}
+                              </span>
+                            </div>
+                            <LoyaltyStampRow stamps={customerLookup.currentStamps} />
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-2">
                     <Label htmlFor="customerName">Name *</Label>
                     <Input
                       id="customerName"
                       value={customerName}
                       onChange={(event) => setCustomerName(event.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="phoneNumber">Phone number *</Label>
-                    <Input
-                      id="phoneNumber"
-                      value={phoneNumber}
-                      onChange={(event) => setPhoneNumber(event.target.value)}
-                      inputMode="tel"
                       required
                     />
                   </div>
@@ -872,10 +987,50 @@ export default function CustomerOrderingPage() {
                 setWingCartItems([]);
                 setStep("menu");
                 setOrderNumber("");
+                setOrderLoyalty(null);
               }}
             >
               New order
             </Button>
+            {orderLoyalty ? (
+              <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 text-left">
+                <div>
+                  <p className="text-sm font-medium">
+                    {orderLoyalty.isNewCustomer
+                      ? "New loyalty account recorded"
+                      : "Loyalty points updated"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Use this cellphone number next time to keep earning stamps.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-muted-foreground">Earned today</span>
+                  <span className="font-semibold">
+                    {orderLoyalty.stampsEarned} stamp
+                    {orderLoyalty.stampsEarned === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-muted-foreground">Current stamps</span>
+                    <span className="font-semibold">
+                      {orderLoyalty.currentStamps}
+                    </span>
+                  </div>
+                  <LoyaltyStampRow stamps={orderLoyalty.currentStamps} />
+                </div>
+                {orderLoyalty.nextRewardStamps ? (
+                  <p className="text-sm text-muted-foreground">
+                    Next free reward at {orderLoyalty.nextRewardStamps} stamps.
+                  </p>
+                ) : (
+                  <p className="text-sm font-medium text-primary">
+                    Free reward available.
+                  </p>
+                )}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </main>

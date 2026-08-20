@@ -12,6 +12,7 @@ import { hasPermission } from "@/lib/permissions";
 import { canViewCashSummary } from "@/lib/cash-summary-access";
 import { canViewSchedule } from "@/lib/schedule-access";
 import { canViewBank } from "@/lib/bank-access";
+import { canManageLoyalty } from "@/lib/loyalty-access";
 
 const STAFF_VISIBLE_HREFS = new Set(["/dashboard", "/my-calendar"]);
 
@@ -36,6 +37,7 @@ export default async function AppLayout({
     if (session.user.roleName === "Staff") return STAFF_VISIBLE_HREFS.has(item.href);
     if (item.href === "/cash-summary") return canViewCashSummary(session?.user);
     if (item.href === "/bank") return canViewBank(session?.user);
+    if (item.href === "/loyalty") return canManageLoyalty(session?.user);
     if (item.href === "/schedule") return canViewSchedule(session?.user);
     return !item.permission || hasPermission(permissions, item.permission);
   }).map((item) => item.href);

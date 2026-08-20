@@ -11,6 +11,7 @@ export const PERMISSIONS = [
   { key: "cash_summary.manage", label: "Update cash summary", module: "Cash Summary" },
   { key: "bank.view", label: "View bank ledger", module: "Bank" },
   { key: "bank.manage", label: "Update bank ledger", module: "Bank" },
+  { key: "loyalty.manage", label: "Manage loyalty cards", module: "Loyalty" },
   { key: "menu.manage", label: "Manage ordering menu", module: "Menu" },
   { key: "schedule.view", label: "View employee schedule", module: "Schedule" },
   { key: "schedule.manage", label: "Update employee schedule", module: "Schedule" },

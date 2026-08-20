@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   CalendarDays,
   Landmark,
+  Gift,
   Utensils,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { title: "Expenses", href: "/expenses", icon: Receipt, permission: "expenses.view" },
   { title: "Bank", href: "/bank", icon: Landmark, permission: "bank.view" },
+  { title: "Loyalty", href: "/loyalty", icon: Gift, permission: "loyalty.manage" },
   { title: "My Calendar", href: "/my-calendar", icon: CalendarCheck },
   {
     title: "Schedule",

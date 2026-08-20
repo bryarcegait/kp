@@ -68,12 +68,13 @@ model User {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  role                 Role               @relation(fields: [roleId], references: [id])
+  role                 Role                 @relation(fields: [roleId], references: [id])
   expenses             Expense[]
-  cashSummariesCreated DailyCashSummary[] @relation("CashSummaryCreatedBy")
-  cashSummariesUpdated DailyCashSummary[] @relation("CashSummaryUpdatedBy")
+  cashSummariesCreated DailyCashSummary[]   @relation("CashSummaryCreatedBy")
+  cashSummariesUpdated DailyCashSummary[]   @relation("CashSummaryUpdatedBy")
   schedules            EmployeeSchedule[]
   bankEntries          BankEntry[]
+  loyaltyTransactions  LoyaltyTransaction[]
 
   @@index([roleId])
   @@map("users")
@@ -186,6 +187,7 @@ model DailyPosReport {
 model CustomerOrder {
   id                String   @id @default(cuid())
   orderNumber       String   @unique
+  customerId        String?
   customerName      String
   phoneNumber       String
   orderType         String
@@ -200,9 +202,53 @@ model CustomerOrder {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  items CustomerOrderItem[]
+  customer            Customer?            @relation(fields: [customerId], references: [id])
+  items               CustomerOrderItem[]
+  loyaltyTransactions LoyaltyTransaction[]
 
+  @@index([customerId])
   @@map("customer_orders")
+}
+
+model Customer {
+  id             String    @id @default(cuid())
+  phoneNumber    String    @unique
+  displayName    String
+  loyaltyPoints  Int       @default(0)
+  lifetimePoints Int       @default(0)
+  redeemedPoints Int       @default(0)
+  lastOrderAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  orders              CustomerOrder[]
+  loyaltyTransactions LoyaltyTransaction[]
+
+  @@index([displayName])
+  @@map("customers")
+}
+
+model LoyaltyTransaction {
+  id           String   @id @default(cuid())
+  customerId   String
+  orderId      String?
+  type         String
+  points       Int
+  balanceAfter Int
+  rewardName   String?
+  remarks      String?  @db.Text
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order     CustomerOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdBy User?          @relation(fields: [createdById], references: [id])
+
+  @@index([customerId])
+  @@index([orderId])
+  @@index([createdById])
+  @@index([type])
+  @@map("loyalty_transactions")
 }
 
 model MenuProduct {
