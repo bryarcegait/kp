@@ -7,12 +7,12 @@ import {
   canViewBank,
 } from "@/lib/bank-access";
 import {
-  addInputDateDays,
   formatDateOnly,
   getDateOnlyRange,
   parseInputDate,
   toDateOnly,
 } from "@/lib/dates";
+import { getCashTransferCalculation } from "@/lib/bank-cash-transfer";
 import {
   BankClient,
   type BankExpenseRow,
@@ -35,20 +35,17 @@ export default async function BankPage({
     Array.isArray(params?.date) ? params.date[0] : params?.date
   );
   const businessDate = toDateOnly(selectedDate);
-  const yesterdayDate = toDateOnly(addInputDateDays(selectedDate, -1));
   const { start, end } = getDateOnlyRange(selectedDate);
 
   const [
     currentBalanceResult,
-    todaySummary,
-    yesterdaySummary,
+    cashTransfer,
     existingTransfer,
     bankExpenses,
     ledgerEntries,
   ] = await Promise.all([
     db.bankEntry.aggregate({ _sum: { amount: true } }),
-    db.dailyCashSummary.findUnique({ where: { businessDate } }),
-    db.dailyCashSummary.findUnique({ where: { businessDate: yesterdayDate } }),
+    getCashTransferCalculation(selectedDate),
     db.bankEntry.findFirst({
       where: { entryType: "cash_transfer", businessDate },
     }),
@@ -66,26 +63,6 @@ export default async function BankPage({
       take: 50,
     }),
   ]);
-
-  const yesterdayCashOnHand = Number(yesterdaySummary?.cashOnHand ?? 0);
-  const todayStartingAmount = Number(todaySummary?.startingAmount ?? 0);
-  const transferAmount = Math.max(
-    0,
-    yesterdayCashOnHand - todayStartingAmount
-  );
-  const todayInputDate = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  })
-    .formatToParts(new Date())
-    .reduce<Record<string, string>>((parts, part) => {
-      parts[part.type] = part.value;
-      return parts;
-    }, {});
-  const today = `${todayInputDate.year}-${todayInputDate.month}-${todayInputDate.day}`;
-  const canRecordCashTransfer = selectedDate >= today;
 
   const bankExpenseRows: BankExpenseRow[] = bankExpenses.map((entry) => ({
     id: entry.id,
@@ -125,15 +102,15 @@ export default async function BankPage({
       <BankClient
         selectedDate={selectedDate}
         currentBalance={Number(currentBalanceResult._sum.amount ?? 0)}
-        yesterdayCashOnHand={yesterdayCashOnHand}
-        todayStartingAmount={todayStartingAmount}
-        transferAmount={transferAmount}
+        previousCashOnHand={cashTransfer.previousCashOnHand}
+        previousCashOnHandDate={cashTransfer.previousCashOnHandDate}
+        todayStartingAmount={cashTransfer.todayStartingAmount}
+        transferAmount={cashTransfer.transferAmount}
         existingTransferAmount={Number(existingTransfer?.amount ?? 0)}
         bankExpenses={bankExpenseRows}
         ledgerEntries={ledgerRows}
         canManage={canManage}
         canSetCurrentAmount={canSetCurrentAmount}
-        canRecordCashTransfer={canRecordCashTransfer}
       />
     </div>
   );
