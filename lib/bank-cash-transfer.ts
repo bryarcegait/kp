@@ -18,7 +18,7 @@ export async function getCashTransferCalculation(
   const [todaySummary, previousSummary] = await Promise.all([
     db.dailyCashSummary.findUnique({ where: { businessDate } }),
     db.dailyCashSummary.findFirst({
-      where: { businessDate: { lt: businessDate } },
+      where: { businessDate: { lt: businessDate }, cashOnHand: { gt: 0 } },
       orderBy: { businessDate: "desc" },
     }),
   ]);
