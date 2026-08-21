@@ -222,6 +222,10 @@ model Customer {
   id             String    @id @default(cuid())
   phoneNumber    String    @unique
   displayName    String
+  email          String?
+  address        String?   @db.Text
+  birthday       DateTime? @db.Date
+  passwordHash   String?   @db.Text
   loyaltyPoints  Int       @default(0)
   lifetimePoints Int       @default(0)
   redeemedPoints Int       @default(0)

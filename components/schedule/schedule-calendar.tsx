@@ -337,7 +337,7 @@ export function ScheduleCalendar({
         />
       </div>
 
-      <div className="grid max-h-[50svh] gap-1 overflow-auto rounded-md border p-2 xl:max-h-[420px]">
+      <div className="grid max-h-[38svh] gap-1 overflow-auto rounded-md border p-2 xl:max-h-[360px]">
         {filteredEmployees.map((employee) => (
           <Label
             key={employee.id}
@@ -356,9 +356,11 @@ export function ScheduleCalendar({
       </div>
 
       {canManage ? (
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Schedule"}
-        </Button>
+        <div className="sticky bottom-0 -mx-1 bg-popover pt-2">
+          <Button className="w-full" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save Schedule"}
+          </Button>
+        </div>
       ) : null}
     </>
   );
@@ -486,7 +488,7 @@ export function ScheduleCalendar({
       </Card>
 
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden sm:max-w-lg">
+        <DialogContent className="grid max-h-[calc(100svh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {new Intl.DateTimeFormat("en-PH", {

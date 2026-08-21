@@ -134,7 +134,7 @@ export function MenuProductsClient({ products }: { products: MenuProductRow[] })
               <TableHead>Category</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Order</TableHead>
+              <TableHead>Sort</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -249,8 +249,7 @@ export function MenuProductsClient({ products }: { products: MenuProductRow[] })
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this product?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteTarget?.name} will be removed from the ordering menu. Existing
-              customer orders keep their saved product name and price.
+              {deleteTarget?.name} will be removed from the public menu.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

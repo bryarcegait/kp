@@ -133,7 +133,7 @@ export function MenuProductForm({
           <div>
             <Label htmlFor="available-switch">Available</Label>
             <p className="text-xs text-muted-foreground">
-              Off means greyed out and not selectable.
+              Off means greyed out on the public menu.
             </p>
           </div>
           <Switch

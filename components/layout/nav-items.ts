@@ -9,7 +9,6 @@ import {
   CalendarDays,
   Landmark,
   Gift,
-  ClipboardList,
   ChartNoAxesCombined,
   Utensils,
   type LucideIcon,
@@ -32,7 +31,6 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { title: "Expenses", href: "/expenses", icon: Receipt, permission: "expenses.view" },
   { title: "Bank", href: "/bank", icon: Landmark, permission: "bank.view" },
-  { title: "Orders", href: "/orders", icon: ClipboardList, permission: "orders.manage" },
   {
     title: "Monthly Report",
     href: "/monthly-report",

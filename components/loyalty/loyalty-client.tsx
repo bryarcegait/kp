@@ -282,8 +282,8 @@ export function LoyaltyClient({
                   <TableHead>Customer</TableHead>
                   <TableHead>Cellphone</TableHead>
                   <TableHead>Stamps</TableHead>
-                  <TableHead className="hidden md:table-cell">Orders</TableHead>
-                  <TableHead className="hidden lg:table-cell">Last Order</TableHead>
+                  <TableHead className="hidden md:table-cell">Visits</TableHead>
+                  <TableHead className="hidden lg:table-cell">Last Visit</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -381,7 +381,7 @@ export function LoyaltyClient({
                   <TableHead>Customer</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Stamps</TableHead>
-                  <TableHead className="hidden md:table-cell">Order</TableHead>
+                  <TableHead className="hidden md:table-cell">Source</TableHead>
                   <TableHead className="hidden lg:table-cell">Remarks</TableHead>
                   <TableHead className="hidden md:table-cell">Date</TableHead>
                 </TableRow>

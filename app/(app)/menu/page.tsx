@@ -27,9 +27,9 @@ export default async function MenuPage() {
   return (
     <div className="grid gap-5">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Ordering Menu</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Menu Settings</h1>
         <p className="text-muted-foreground">
-          Manage products shown on the public ordering page.
+          Manage products shown on the public restaurant menu.
         </p>
       </div>
 
