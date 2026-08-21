@@ -242,13 +242,11 @@ function CashTransferForm({
   transferAmount,
   existingTransferAmount,
   canManage,
-  canRecordCashTransfer,
 }: {
   selectedDate: string;
   transferAmount: number;
   existingTransferAmount: number;
   canManage: boolean;
-  canRecordCashTransfer: boolean;
 }) {
   const [state, formAction, isPending] = useActionState(
     recordDailyCashTransfer,
@@ -262,7 +260,7 @@ function CashTransferForm({
       <input type="hidden" name="businessDate" value={selectedDate} />
       <Button
         type="submit"
-        disabled={!canManage || !canRecordCashTransfer || isPending || transferAmount <= 0}
+        disabled={!canManage || isPending || transferAmount <= 0}
       >
         {isPending
           ? "Saving..."
@@ -273,11 +271,6 @@ function CashTransferForm({
       {state.error ? (
         <p className="text-sm font-medium text-destructive" role="alert">
           {state.error}
-        </p>
-      ) : null}
-      {!canRecordCashTransfer ? (
-        <p className="text-sm text-muted-foreground">
-          Bank transfer cannot be recorded for past dates.
         </p>
       ) : null}
     </form>
@@ -294,7 +287,8 @@ function entryTypeLabel(type: string) {
 export function BankClient({
   selectedDate,
   currentBalance,
-  yesterdayCashOnHand,
+  previousCashOnHand,
+  previousCashOnHandDate,
   todayStartingAmount,
   transferAmount,
   existingTransferAmount,
@@ -302,11 +296,11 @@ export function BankClient({
   ledgerEntries,
   canManage,
   canSetCurrentAmount,
-  canRecordCashTransfer,
 }: {
   selectedDate: string;
   currentBalance: number;
-  yesterdayCashOnHand: number;
+  previousCashOnHand: number;
+  previousCashOnHandDate: string | null;
   todayStartingAmount: number;
   transferAmount: number;
   existingTransferAmount: number;
@@ -314,7 +308,6 @@ export function BankClient({
   ledgerEntries: BankLedgerRow[];
   canManage: boolean;
   canSetCurrentAmount: boolean;
-  canRecordCashTransfer: boolean;
 }) {
   const [dialogTarget, setDialogTarget] = useState<"new" | BankExpenseRow | null>(
     null
@@ -358,7 +351,7 @@ export function BankClient({
           <CardContent>
             <p className="text-3xl font-bold">{formatCurrency(transferAmount)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Yesterday cash on hand minus today starting cash
+              Last cash-on-hand day minus today starting cash
             </p>
           </CardContent>
         </Card>
@@ -422,9 +415,12 @@ export function BankClient({
             <h3 className="font-semibold">Cash From Drawer</h3>
             <div className="mt-3 grid gap-2 text-sm">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Yesterday cash on hand</span>
+                <span className="text-muted-foreground">
+                  Previous cash on hand
+                  {previousCashOnHandDate ? ` (${formatDate(previousCashOnHandDate)})` : ""}
+                </span>
                 <span className="font-medium">
-                  {formatCurrency(yesterdayCashOnHand)}
+                  {formatCurrency(previousCashOnHand)}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
@@ -452,7 +448,6 @@ export function BankClient({
                 transferAmount={transferAmount}
                 existingTransferAmount={existingTransferAmount}
                 canManage={canManage}
-                canRecordCashTransfer={canRecordCashTransfer}
               />
             </div>
           </div>

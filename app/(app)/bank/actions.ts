@@ -6,7 +6,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canManageBank, canSetBankCurrentAmount } from "@/lib/bank-access";
 import { uploadReceipt } from "@/lib/blob";
-import { addInputDateDays, parseInputDate, toDateOnly } from "@/lib/dates";
+import { toDateOnly } from "@/lib/dates";
+import { getCashTransferCalculation } from "@/lib/bank-cash-transfer";
 
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
@@ -62,17 +63,6 @@ function collectFieldErrors(error: z.ZodError) {
 function revalidateBank() {
   revalidatePath("/bank");
   revalidatePath("/dashboard");
-}
-
-function getTodayInputDate() {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
 }
 
 async function getCurrentBankBalance() {
@@ -135,25 +125,13 @@ export async function recordDailyCashTransfer(
     return { error: "Please choose a valid business date." };
   }
 
-  const businessDateInput = parseInputDate(parsed.data.businessDate);
-  if (businessDateInput < getTodayInputDate()) {
-    return {
-      error:
-        "Bank transfer cannot be recorded for past dates.",
-    };
-  }
-
-  const businessDate = toDateOnly(businessDateInput);
-  const yesterdayDate = toDateOnly(addInputDateDays(businessDateInput, -1));
-
-  const [todaySummary, yesterdaySummary] = await Promise.all([
-    db.dailyCashSummary.findUnique({ where: { businessDate } }),
-    db.dailyCashSummary.findUnique({ where: { businessDate: yesterdayDate } }),
-  ]);
-
-  const yesterdayCashOnHand = Number(yesterdaySummary?.cashOnHand ?? 0);
-  const todayStartingAmount = Number(todaySummary?.startingAmount ?? 0);
-  const transferAmount = yesterdayCashOnHand - todayStartingAmount;
+  const {
+    businessDate,
+    previousCashOnHand,
+    previousCashOnHandDate,
+    todayStartingAmount,
+    transferAmount,
+  } = await getCashTransferCalculation(parsed.data.businessDate);
 
   if (transferAmount <= 0) {
     return {
@@ -171,7 +149,7 @@ export async function recordDailyCashTransfer(
     businessDate,
     name: "Cash transferred from drawer",
     amount: transferAmount,
-    remarks: `Yesterday cash on hand ${yesterdayCashOnHand.toFixed(2)} minus today's starting cash ${todayStartingAmount.toFixed(2)}.`,
+    remarks: `Previous cash on hand${previousCashOnHandDate ? ` from ${previousCashOnHandDate}` : ""} ${previousCashOnHand.toFixed(2)} minus today's starting cash ${todayStartingAmount.toFixed(2)}.`,
     createdById: guard.session.user.id,
   };
 
