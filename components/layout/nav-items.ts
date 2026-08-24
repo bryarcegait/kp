@@ -24,7 +24,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   {
-    title: "Cash Summary",
+    title: "Daily Cash Closeout",
     href: "/cash-summary",
     icon: Calculator,
     permission: "cash_summary.view",

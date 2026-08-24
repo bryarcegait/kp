@@ -102,7 +102,7 @@ export default async function CashSummaryPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Cash Summary
+              Daily Cash Closeout
             </h1>
             <p className="text-muted-foreground">
               Enter shift start cash, close the drawer, and carry tomorrow&apos;s
@@ -114,13 +114,6 @@ export default async function CashSummaryPage({
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Daily Drawer Inputs</CardTitle>
-          <CardDescription>
-            Business Date defaults to today. Shift Start and Shift End can be
-            saved separately.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <CashSummaryForm summary={values} canManage={canManage} />
         </CardContent>
@@ -164,7 +157,7 @@ export default async function CashSummaryPage({
           <CardDescription>
             {summary
               ? `Last updated by ${summary.updatedBy.fullName}.`
-              : "No cash summary has been saved for this date yet."}
+              : "No daily cash closeout has been saved for this date yet."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-5">

@@ -108,16 +108,25 @@ export function CashSummaryForm({
 
   return (
     <div className="grid gap-5">
-      <div className="grid gap-2 sm:max-w-xs">
-        <Label htmlFor="businessDate">Business Date</Label>
-        <Input
-          id="businessDate"
-          type="date"
-          value={businessDate}
-          onChange={(event) => setBusinessDate(event.target.value)}
-          readOnly={!canManage}
-          required
-        />
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Daily Drawer Inputs</h2>
+          <p className="text-sm text-muted-foreground">
+            Business Date defaults to today. Shift Start and Shift End can be
+            saved separately.
+          </p>
+        </div>
+        <div className="grid gap-2 md:w-72">
+          <Label htmlFor="businessDate">Business Date</Label>
+          <Input
+            id="businessDate"
+            type="date"
+            value={businessDate}
+            onChange={(event) => setBusinessDate(event.target.value)}
+            readOnly={!canManage}
+            required
+          />
+        </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
