@@ -29,7 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Calculator,
     permission: "cash_summary.view",
   },
-  { title: "Expenses", href: "/expenses", icon: Receipt, permission: "expenses.view" },
+  { title: "Daily Expenses", href: "/expenses", icon: Receipt, permission: "expenses.view" },
   { title: "Bank", href: "/bank", icon: Landmark, permission: "bank.view" },
   {
     title: "Monthly Report",

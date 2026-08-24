@@ -162,6 +162,7 @@ async function main() {
           startingAmount: summary.startingAmount,
           adjustments: summary.adjustments,
           cashOnHand: summary.cashOnHand,
+          openingCashForTomorrow: summary.openingCashForTomorrow,
           notes: summary.notes,
           createdById: summary.createdById,
           updatedById: summary.updatedById,

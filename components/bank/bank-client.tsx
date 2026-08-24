@@ -13,8 +13,6 @@ import {
 } from "lucide-react";
 import {
   deleteBankExpense,
-  recordDailyCashTransfer,
-  setBankCurrentAmount,
   upsertBankExpense,
   type BankFormState,
 } from "@/app/(app)/bank/actions";
@@ -203,87 +201,6 @@ function BankExpenseForm({
   );
 }
 
-function SetBankBalanceForm({ currentBalance }: { currentBalance: number }) {
-  const [state, formAction, isPending] = useActionState(
-    setBankCurrentAmount,
-    initialState
-  );
-  useFormToast(state, isPending);
-
-  return (
-    <form action={formAction} className="grid gap-3 sm:grid-cols-[1fr_auto]">
-      <div className="grid gap-2">
-        <Label htmlFor="currentAmount">Current bank amount</Label>
-        <Input
-          id="currentAmount"
-          name="currentAmount"
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step="0.01"
-          defaultValue={currentBalance.toFixed(2)}
-          required
-        />
-        {state.fieldErrors?.currentAmount ? (
-          <p className="text-sm text-destructive">
-            {state.fieldErrors.currentAmount}
-          </p>
-        ) : null}
-      </div>
-      <Button type="submit" className="self-end" disabled={isPending}>
-        {isPending ? "Saving..." : "Save amount"}
-      </Button>
-    </form>
-  );
-}
-
-function CashTransferForm({
-  selectedDate,
-  transferAmount,
-  existingTransferAmount,
-  canManage,
-  canRecordCashTransfer,
-}: {
-  selectedDate: string;
-  transferAmount: number;
-  existingTransferAmount: number;
-  canManage: boolean;
-  canRecordCashTransfer: boolean;
-}) {
-  const [state, formAction, isPending] = useActionState(
-    recordDailyCashTransfer,
-    initialState
-  );
-  useFormToast(state, isPending);
-  const hasExistingTransfer = existingTransferAmount > 0;
-
-  return (
-    <form action={formAction} className="grid gap-3">
-      <input type="hidden" name="businessDate" value={selectedDate} />
-      <Button
-        type="submit"
-        disabled={!canManage || !canRecordCashTransfer || isPending || transferAmount <= 0}
-      >
-        {isPending
-          ? "Saving..."
-          : hasExistingTransfer
-            ? "Update bank transfer"
-            : "Record bank transfer"}
-      </Button>
-      {state.error ? (
-        <p className="text-sm font-medium text-destructive" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {!canRecordCashTransfer ? (
-        <p className="text-sm text-muted-foreground">
-          Bank transfer cannot be recorded for past dates.
-        </p>
-      ) : null}
-    </form>
-  );
-}
-
 function entryTypeLabel(type: string) {
   if (type === "balance_adjustment") return "Balance";
   if (type === "cash_transfer") return "Cash Transfer";
@@ -294,27 +211,15 @@ function entryTypeLabel(type: string) {
 export function BankClient({
   selectedDate,
   currentBalance,
-  yesterdayCashOnHand,
-  todayStartingAmount,
-  transferAmount,
-  existingTransferAmount,
   bankExpenses,
   ledgerEntries,
   canManage,
-  canSetCurrentAmount,
-  canRecordCashTransfer,
 }: {
   selectedDate: string;
   currentBalance: number;
-  yesterdayCashOnHand: number;
-  todayStartingAmount: number;
-  transferAmount: number;
-  existingTransferAmount: number;
   bankExpenses: BankExpenseRow[];
   ledgerEntries: BankLedgerRow[];
   canManage: boolean;
-  canSetCurrentAmount: boolean;
-  canRecordCashTransfer: boolean;
 }) {
   const [dialogTarget, setDialogTarget] = useState<"new" | BankExpenseRow | null>(
     null
@@ -325,6 +230,9 @@ export function BankClient({
     (sum, expense) => sum + Math.abs(Number(expense.amount)),
     0
   );
+  const cashTransferTotal = ledgerEntries
+    .filter((entry) => entry.type === "cash_transfer")
+    .reduce((sum, entry) => sum + Number(entry.amount), 0);
 
   function handleDelete() {
     if (!deleteTarget) return;
@@ -353,12 +261,12 @@ export function BankClient({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Cash To Bank</CardTitle>
+            <CardTitle className="text-sm font-medium">Cash Transfers</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{formatCurrency(transferAmount)}</p>
+            <p className="text-3xl font-bold">{formatCurrency(cashTransferTotal)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Yesterday cash on hand minus today starting cash
+              Recorded from Shift End cash summary
             </p>
           </CardContent>
         </Card>
@@ -379,101 +287,33 @@ export function BankClient({
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <CardTitle>Bank Controls</CardTitle>
-              <CardDescription>
-                Set the bank amount, then record cash moved from the drawer.
-              </CardDescription>
-            </div>
-            <form action="/bank" className="flex items-center gap-2">
-              <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="date"
-                  name="date"
-                  defaultValue={selectedDate}
-                  className="h-8 w-[10.5rem] pl-8"
-                />
-              </div>
-              <Button type="submit" variant="outline">
-                <Search className="size-4" /> Filter
-              </Button>
-            </form>
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-lg border p-4">
-            <h3 className="font-semibold">Set Current Bank Amount</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Use this when starting or correcting the bank balance. It saves an
-              adjustment row in the ledger.
-            </p>
-            {canSetCurrentAmount ? (
-              <div className="mt-4">
-                <SetBankBalanceForm currentBalance={currentBalance} />
-              </div>
-            ) : (
-              <p className="mt-4 text-sm text-muted-foreground">
-                Only System Admin can set the current bank amount.
-              </p>
-            )}
-          </div>
-
-          <div className="rounded-lg border p-4">
-            <h3 className="font-semibold">Cash From Drawer</h3>
-            <div className="mt-3 grid gap-2 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Yesterday cash on hand</span>
-                <span className="font-medium">
-                  {formatCurrency(yesterdayCashOnHand)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Today starting cash</span>
-                <span className="font-medium">
-                  - {formatCurrency(todayStartingAmount)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-t pt-2">
-                <span className="font-medium">Amount added to bank</span>
-                <span className="text-lg font-bold">
-                  {formatCurrency(transferAmount)}
-                </span>
-              </div>
-              {existingTransferAmount > 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Recorded amount for this date:{" "}
-                  {formatCurrency(existingTransferAmount)}
-                </p>
-              ) : null}
-            </div>
-            <div className="mt-4">
-              <CashTransferForm
-                selectedDate={selectedDate}
-                transferAmount={transferAmount}
-                existingTransferAmount={existingTransferAmount}
-                canManage={canManage}
-                canRecordCashTransfer={canRecordCashTransfer}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
               <CardTitle>Bank Expenses</CardTitle>
               <CardDescription>
                 These subtract from the bank and are separate from the daily
-                sales Expenses page.
+                sales Daily Expenses page.
               </CardDescription>
             </div>
-            {canManage ? (
-              <Button onClick={() => setDialogTarget("new")}>
-                <Plus className="size-4" /> Add Bank Expense
-              </Button>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <form action="/bank" className="flex items-center gap-2">
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    name="date"
+                    defaultValue={selectedDate}
+                    className="h-8 w-[10.5rem] pl-8"
+                  />
+                </div>
+                <Button type="submit" variant="outline">
+                  <Search className="size-4" /> Filter
+                </Button>
+              </form>
+              {canManage ? (
+                <Button onClick={() => setDialogTarget("new")}>
+                  <Plus className="size-4" /> Add Bank Expense
+                </Button>
+              ) : null}
+            </div>
           </div>
         </CardHeader>
         <CardContent>

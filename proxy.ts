@@ -7,6 +7,6 @@ export const proxy = auth;
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|kanto-logo.png|uploads).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest|manifest.json|kanto-logo.png|uploads).*)",
   ],
 };
