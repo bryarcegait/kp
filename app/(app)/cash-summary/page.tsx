@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/format";
-import { parseInputDate, toDateOnly } from "@/lib/dates";
+import { addInputDateDays, parseInputDate, toDateOnly } from "@/lib/dates";
 import {
   canManageCashSummary,
   canViewCashSummary,
@@ -37,17 +37,24 @@ export default async function CashSummaryPage({
     Array.isArray(params?.date) ? params.date[0] : params?.date
   );
   const businessDate = toDateOnly(selectedDate);
+  const previousBusinessDate = toDateOnly(addInputDateDays(selectedDate, -1));
 
-  const summary = await db.dailyCashSummary.findUnique({
-    where: { businessDate },
-    include: {
-      updatedBy: { select: { fullName: true } },
-      adjustmentItems: { orderBy: { createdAt: "asc" } },
-    },
-  });
-  const posReport = await db.dailyPosReport.findUnique({
-    where: { businessDate },
-  });
+  const [summary, previousSummary, posReport] = await Promise.all([
+    db.dailyCashSummary.findUnique({
+      where: { businessDate },
+      include: {
+        updatedBy: { select: { fullName: true } },
+        adjustmentItems: { orderBy: { createdAt: "asc" } },
+      },
+    }),
+    db.dailyCashSummary.findUnique({
+      where: { businessDate: previousBusinessDate },
+      select: { openingCashForTomorrow: true },
+    }),
+    db.dailyPosReport.findUnique({
+      where: { businessDate },
+    }),
+  ]);
 
   const adjustmentItems =
     summary?.adjustmentItems.length && summary.adjustmentItems.length > 0
@@ -69,12 +76,23 @@ export default async function CashSummaryPage({
     adjustmentItems.length > 0
       ? adjustmentItems.reduce((sum, item) => sum + Number(item.amount), 0)
       : Number(summary?.adjustments ?? 0);
+  const openingCash =
+    summary?.startingAmount.toString() ??
+    previousSummary?.openingCashForTomorrow.toString() ??
+    "0.00";
+  const openingCashForTomorrow =
+    summary?.openingCashForTomorrow.toString() ?? "0.00";
+  const cashToBank = Math.max(
+    0,
+    Number(summary?.cashOnHand ?? 0) - Number(summary?.openingCashForTomorrow ?? 0)
+  );
 
   const values: CashSummaryFormValues = {
     businessDate: selectedDate,
-    startingAmount: summary?.startingAmount.toString() ?? "0.00",
+    startingAmount: openingCash,
     adjustments: adjustmentItems,
     cashOnHand: summary?.cashOnHand.toString() ?? "0.00",
+    openingCashForTomorrow,
     notes: summary?.notes ?? "",
   };
 
@@ -87,8 +105,8 @@ export default async function CashSummaryPage({
               Cash Summary
             </h1>
             <p className="text-muted-foreground">
-              Enter the drawer starting cash, adjustments, and closing cash on
-              hand.
+              Enter shift start cash, close the drawer, and carry tomorrow&apos;s
+              opening cash forward.
             </p>
           </div>
           <SyncPosButton businessDate={selectedDate} canManage={canManage} />
@@ -99,8 +117,8 @@ export default async function CashSummaryPage({
         <CardHeader>
           <CardTitle>Daily Drawer Inputs</CardTitle>
           <CardDescription>
-            Adjustments are cash added to the register outside POS sales, such as
-            tips or overpayment.
+            Business Date defaults to today. Shift Start and Shift End can be
+            saved separately.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -149,12 +167,10 @@ export default async function CashSummaryPage({
               : "No cash summary has been saved for this date yet."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
+        <CardContent className="grid gap-3 text-sm sm:grid-cols-5">
           <div>
-            <p className="text-muted-foreground">Starting Cash</p>
-            <p className="font-medium">
-              {formatCurrency(values.startingAmount)}
-            </p>
+            <p className="text-muted-foreground">Opening Cash</p>
+            <p className="font-medium">{formatCurrency(values.startingAmount)}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Adjustments</p>
@@ -176,6 +192,16 @@ export default async function CashSummaryPage({
           <div>
             <p className="text-muted-foreground">Cash on Hand</p>
             <p className="font-medium">{formatCurrency(values.cashOnHand)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Opening Cash Tomorrow</p>
+            <p className="font-medium">
+              {formatCurrency(values.openingCashForTomorrow)}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Cash Added to Bank</p>
+            <p className="font-medium">{formatCurrency(cashToBank)}</p>
           </div>
         </CardContent>
       </Card>

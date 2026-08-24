@@ -132,16 +132,17 @@ model BankEntry {
 }
 
 model DailyCashSummary {
-  id             String   @id @default(cuid())
-  businessDate   DateTime @unique @db.Date
-  startingAmount Decimal  @default(0) @db.Decimal(12, 2)
-  adjustments    Decimal  @default(0) @db.Decimal(12, 2)
-  cashOnHand     Decimal  @default(0) @db.Decimal(12, 2)
-  notes          String?  @db.Text
-  createdById    String
-  updatedById    String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  businessDate           DateTime @unique @db.Date
+  startingAmount         Decimal  @default(0) @db.Decimal(12, 2)
+  adjustments            Decimal  @default(0) @db.Decimal(12, 2)
+  cashOnHand             Decimal  @default(0) @db.Decimal(12, 2)
+  openingCashForTomorrow Decimal  @default(0) @db.Decimal(12, 2)
+  notes                  String?  @db.Text
+  createdById            String
+  updatedById            String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   createdBy       User                  @relation("CashSummaryCreatedBy", fields: [createdById], references: [id])
   updatedBy       User                  @relation("CashSummaryUpdatedBy", fields: [updatedById], references: [id])

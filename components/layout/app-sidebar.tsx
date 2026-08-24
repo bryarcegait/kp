@@ -11,12 +11,23 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { NAV_ITEMS } from "@/components/layout/nav-items";
 
 export function AppSidebar({ visibleHrefs }: { visibleHrefs: string[] }) {
   const pathname = usePathname();
+  const { isMobile, setOpen, setOpenMobile } = useSidebar();
   const items = NAV_ITEMS.filter((item) => visibleHrefs.includes(item.href));
+
+  const hideSidebar = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+      return;
+    }
+
+    setOpen(false);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -52,7 +63,7 @@ export function AppSidebar({ visibleHrefs }: { visibleHrefs: string[] }) {
                       tooltip={item.title}
                       className="h-12 rounded-r-full rounded-l-none border-l-[3px] border-transparent px-5 py-1.5 text-white hover:border-white hover:bg-white hover:text-primary data-active:border-white data-active:bg-white data-active:text-primary group-data-[collapsible=icon]:mx-2 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:rounded-full group-data-[collapsible=icon]:border-l-0 group-data-[collapsible=icon]:p-0"
                     >
-                      <Link href={item.href}>
+                      <Link href={item.href} onClick={hideSidebar}>
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#161016] text-white transition-colors group-hover/menu-button:bg-primary group-hover/menu-button:text-primary-foreground group-data-[active=true]/menu-button:bg-primary group-data-[active=true]/menu-button:text-primary-foreground">
                           <item.icon className="size-4" />
                         </span>
