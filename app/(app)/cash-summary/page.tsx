@@ -115,7 +115,11 @@ export default async function CashSummaryPage({
 
       <Card>
         <CardContent>
-          <CashSummaryForm summary={values} canManage={canManage} />
+          <CashSummaryForm
+            key={selectedDate}
+            summary={values}
+            canManage={canManage}
+          />
         </CardContent>
       </Card>
 

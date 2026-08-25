@@ -203,7 +203,7 @@ function BankExpenseForm({
 
 function entryTypeLabel(type: string) {
   if (type === "balance_adjustment") return "Balance";
-  if (type === "cash_transfer") return "Cash Transfer";
+  if (type === "cash_transfer") return "Cash Added to Bank";
   if (type === "bank_expense") return "Bank Expense";
   return type;
 }

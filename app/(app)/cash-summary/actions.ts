@@ -219,6 +219,7 @@ export async function saveShiftEnd(
 
     if (bankTransferAmount > 0) {
       const transferData = {
+        name: "Cash added to Bank",
         amount: bankTransferAmount,
         remarks: `Cash on hand ${parsed.data.cashOnHand.toFixed(2)} minus opening cash for tomorrow ${parsed.data.openingCashForTomorrow.toFixed(2)}.`,
         createdById: guard.session.user.id,
@@ -234,7 +235,6 @@ export async function saveShiftEnd(
           data: {
             entryType: "cash_transfer",
             businessDate,
-            name: "Cash transferred from drawer",
             ...transferData,
           },
         });

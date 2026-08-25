@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -48,6 +49,7 @@ export function CashSummaryForm({
   summary: CashSummaryFormValues;
   canManage: boolean;
 }) {
+  const router = useRouter();
   const [shiftStartState, shiftStartAction, isShiftStartPending] = useActionState(
     saveShiftStart,
     initialState
@@ -69,6 +71,13 @@ export function CashSummaryForm({
 
   useFormToast(shiftStartState, isShiftStartPending);
   useFormToast(shiftEndState, isShiftEndPending);
+
+  const updateBusinessDate = (value: string) => {
+    setBusinessDate(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      router.replace(`/cash-summary?date=${value}`, { scroll: false });
+    }
+  };
 
   const addAdjustment = () => {
     setAdjustments((current) => [
@@ -122,7 +131,7 @@ export function CashSummaryForm({
             id="businessDate"
             type="date"
             value={businessDate}
-            onChange={(event) => setBusinessDate(event.target.value)}
+            onChange={(event) => updateBusinessDate(event.target.value)}
             readOnly={!canManage}
             required
           />
