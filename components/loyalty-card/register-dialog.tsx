@@ -72,7 +72,7 @@ export function RegisterDialog({
         ) : (
           <form onSubmit={handleSubmit} className="grid gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="register-nickname">Nickname</Label>
+              <Label htmlFor="register-nickname">Name</Label>
               <Input id="register-nickname" name="nickname" required autoComplete="nickname" />
             </div>
             <div className="grid gap-2">

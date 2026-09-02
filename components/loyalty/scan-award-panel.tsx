@@ -140,24 +140,38 @@ function CameraScanTab() {
     cancelAnimationFrame(frameRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
   }
 
   async function startCamera() {
     setCameraError("");
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("This browser doesn't support camera access. Use the Online order tab instead.");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
       setIsScanning(true);
     } catch {
       setCameraError("Could not access the camera. Check browser permissions.");
     }
   }
+
+  useEffect(() => {
+    if (!isScanning || !streamRef.current || !videoRef.current) return;
+
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+    video.play().catch(() => {
+      setCameraError("Could not start the camera preview. Check browser permissions.");
+      stopCamera();
+    });
+  }, [isScanning]);
 
   useEffect(() => {
     if (!isScanning) return;
@@ -204,11 +218,14 @@ function CameraScanTab() {
   return (
     <div className="grid gap-3">
       <div className="relative grid aspect-square place-items-center overflow-hidden rounded-lg border bg-muted">
-        {isScanning ? (
-          <video ref={videoRef} className="size-full object-cover" muted playsInline />
-        ) : (
-          <Camera className="size-10 text-muted-foreground" />
-        )}
+        <video
+          ref={videoRef}
+          className={`size-full object-cover ${isScanning ? "" : "hidden"}`}
+          muted
+          autoPlay
+          playsInline
+        />
+        {!isScanning ? <Camera className="size-10 text-muted-foreground" /> : null}
         <canvas ref={canvasRef} className="hidden" />
       </div>
       {isResolving ? (

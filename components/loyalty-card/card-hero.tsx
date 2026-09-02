@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { Download, Gift, History, LogIn, LogOut, Sparkles, UserPlus, Utensils } from "lucide-react";
+import QRCode from "qrcode";
+import { Download, Gift, History, LogIn, LogOut, UserPlus, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { CustomerLoyaltyCard } from "@/app/customer-loyalty-actions";
 import { formatDate } from "@/lib/format";
@@ -46,17 +49,139 @@ function StampRow({ points, rewardTiers }: { points: number; rewardTiers: { stam
   );
 }
 
-function CardLogo() {
+function CardHeaderRow() {
   return (
-    <Image
-      src="/kanto-logo.png"
-      alt="Kanto't Pakpakan"
-      width={56}
-      height={56}
-      className="size-12 rounded-full bg-white object-contain p-1 shadow-sm sm:size-14"
-      priority
-    />
+    <div className="flex items-center gap-3">
+      <Image
+        src="/kanto-logo.png"
+        alt="Kanto't Pakpakan"
+        width={56}
+        height={56}
+        className="size-11 rounded-full bg-white object-contain p-1 shadow-sm sm:size-12"
+        priority
+      />
+      <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
+        eLoyalty Card
+      </p>
+    </div>
   );
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    img.src = src;
+  });
+}
+
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+async function downloadLoyaltyCardImage(loyaltyCode: string, displayName: string, email: string) {
+  const width = 640;
+  const height = 900;
+  const padding = 48;
+
+  const logoSize = 72;
+  const qrBoxY = padding + logoSize + 224;
+  const qrBoxWidth = width - padding * 2;
+  const qrBoxHeight = height - qrBoxY - padding;
+  const qrSize = Math.min(qrBoxWidth, qrBoxHeight) - 96;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  try {
+    await document.fonts.load("italic 700 44px Caveat");
+  } catch {
+    // Fall back to the generic cursive family below if Caveat isn't ready.
+  }
+
+  // Generate the QR at exactly the size it will be drawn at, rather than
+  // scaling up the small on-screen one — avoids any blur that could hurt
+  // scannability.
+  const [logo, qr] = await Promise.all([
+    loadImage("/kanto-logo.png"),
+    QRCode.toDataURL(loyaltyCode, { width: Math.round(qrSize), margin: 1 }).then(loadImage),
+  ]);
+
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#fb8428");
+  gradient.addColorStop(1, "#c45a23");
+  roundedRectPath(ctx, 0, 0, width, height, 32);
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  roundedRectPath(ctx, padding, padding, logoSize, logoSize, logoSize / 2);
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.drawImage(logo, padding + 4, padding + 4, logoSize - 8, logoSize - 8);
+  ctx.restore();
+
+  ctx.fillStyle = "rgba(255, 244, 213, 0.85)";
+  ctx.font = "700 16px sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.fillText("ELOYALTY CARD", padding + logoSize + 16, padding + logoSize / 2);
+
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 52px sans-serif";
+  ctx.fillText("KP CARD", padding, padding + logoSize + 70);
+
+  ctx.fillStyle = "rgba(255, 244, 213, 0.9)";
+  ctx.font = "400 18px sans-serif";
+  ctx.fillText("This card belongs to:", padding, padding + logoSize + 110);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "italic 700 44px Caveat, cursive";
+  ctx.fillText(displayName, padding, padding + logoSize + 160);
+
+  ctx.fillStyle = "rgba(255, 244, 213, 0.85)";
+  ctx.font = "400 17px sans-serif";
+  ctx.fillText(email, padding, padding + logoSize + 192);
+
+  roundedRectPath(ctx, padding, qrBoxY, qrBoxWidth, qrBoxHeight, 24);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  const qrX = padding + (qrBoxWidth - qrSize) / 2;
+  const qrY = qrBoxY + 40;
+  ctx.drawImage(qr, qrX, qrY, qrSize, qrSize);
+
+  ctx.fillStyle = "#7a2f14";
+  ctx.font = "700 18px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Show this at checkout", width / 2, qrY + qrSize + 36);
+  ctx.textAlign = "left";
+
+  const link = document.createElement("a");
+  link.href = canvas.toDataURL("image/png");
+  link.download = "kp-loyalty-card.png";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 export function LoggedOutCardHero({
@@ -69,13 +194,8 @@ export function LoggedOutCardHero({
   return (
     <div className="grid gap-6">
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
-            eLoyalty Card
-          </p>
-          <CardLogo />
-        </div>
-        <p className="mt-2 text-4xl font-black tracking-wide text-white sm:text-5xl">KP CARD</p>
+        <CardHeaderRow />
+        <p className="mt-6 text-4xl font-black tracking-wide text-white sm:text-5xl">KP CARD</p>
         <div className="mt-8">
           <p className="text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
           <p
@@ -126,17 +246,11 @@ export function LoggedInCardHero({
   return (
     <div className="grid gap-4">
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10">
-        <div className="grid gap-8 lg:grid-cols-[1fr_auto]">
+        <CardHeaderRow />
+
+        <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_auto]">
           <div>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
-                eLoyalty Card
-              </p>
-              <CardLogo />
-            </div>
-            <p className="mt-2 text-4xl font-black tracking-wide text-white sm:text-5xl">
-              KP CARD
-            </p>
+            <p className="text-4xl font-black tracking-wide text-white sm:text-5xl">KP CARD</p>
             <p className="mt-6 text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
             <p
               className="mt-2 border-b-4 border-[#fff4d5]/60 pb-2 text-5xl italic text-white sm:text-6xl"
@@ -149,14 +263,14 @@ export function LoggedInCardHero({
             {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, generated server-side, not eligible for next/image optimization */}
             <img src={qrDataUrl} alt="Your loyalty QR code" width={160} height={160} />
             <p className="text-xs font-semibold text-[#7a2f14]">Show this at checkout</p>
-            <a
-              href={qrDataUrl}
-              download="kp-loyalty-qr.png"
+            <button
+              type="button"
+              onClick={() => downloadLoyaltyCardImage(card.loyaltyCode, card.displayName, card.email)}
               className="flex items-center gap-1.5 rounded-full bg-[#fff4d5] px-3 py-1.5 text-xs font-semibold text-[#7a2f14] transition hover:bg-[#ffe9bd]"
             >
               <Download className="size-3.5" />
               Download QR
-            </a>
+            </button>
           </div>
         </div>
 
@@ -198,12 +312,12 @@ export function LoggedInCardHero({
         </button>
       </div>
 
-      <div className="grid gap-3 rounded-xl border bg-card p-4">
-        <div className="flex items-center gap-2 font-semibold">
-          <History className="size-4 text-primary" />
-          Recent stamp activity
-        </div>
-        {card.latestTransactions.length > 0 ? (
+      {card.latestTransactions.length > 0 ? (
+        <div className="grid gap-3 rounded-xl border bg-card p-4">
+          <div className="flex items-center gap-2 font-semibold">
+            <History className="size-4 text-primary" />
+            Recent stamp activity
+          </div>
           <div className="grid gap-2">
             {card.latestTransactions.map((transaction) => (
               <div
@@ -223,13 +337,8 @@ export function LoggedInCardHero({
               </div>
             ))}
           </div>
-        ) : (
-          <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-            <Sparkles className="size-4" />
-            No stamp activity yet.
-          </div>
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
