@@ -5,7 +5,9 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import {
   CheckCircle2,
+  CupSoda,
   Download,
+  Drumstick,
   Gift,
   History,
   LogIn,
@@ -24,6 +26,24 @@ const actionButtonBase =
 const actionButtonSolid = "bg-[#c45a23] text-white hover:bg-[#a94618]";
 const actionButtonSoft = "bg-[#fff4d5] text-[#7a2f14] hover:bg-[#ffe9bd]";
 
+type RewardTier = { stamps: number; name: string };
+
+/**
+ * The first reward tier gets a drink icon, the final (highest) tier gets a
+ * wings icon, and anything in between falls back to a generic gift icon —
+ * matches today's two-tier program (free drink, then free wings) while
+ * still rendering sensibly if more tiers are ever added.
+ */
+function getRewardVisual(rewardIndex: number, totalRewards: number) {
+  if (rewardIndex === 0) {
+    return { Icon: CupSoda, label: "Drinks", description: "Any drinks available" };
+  }
+  if (rewardIndex === totalRewards - 1) {
+    return { Icon: Drumstick, label: "Wings", description: "4pcs wings meal" };
+  }
+  return { Icon: Gift, label: "Reward", description: "" };
+}
+
 /**
  * Stamps grid for the "back" of the card. A slot's gift icon communicates
  * three states: not yet reached (dim), currently claimable — points already
@@ -39,10 +59,9 @@ function StampGrid({
 }: {
   points: number;
   claimedRewardStamps: number[];
-  rewardTiers: { stamps: number; name: string }[];
+  rewardTiers: RewardTier[];
 }) {
   const maxStamps = rewardTiers.length > 0 ? Math.max(...rewardTiers.map((r) => r.stamps)) : 10;
-  const rewardAtStamp = new Set(rewardTiers.map((r) => r.stamps));
   const claimedStamps = new Set(claimedRewardStamps);
 
   return (
@@ -50,9 +69,13 @@ function StampGrid({
       {Array.from({ length: maxStamps }).map((_, index) => {
         const stampNumber = index + 1;
         const isEarned = points >= stampNumber;
-        const isRewardSlot = rewardAtStamp.has(stampNumber);
+        const rewardIndex = rewardTiers.findIndex((reward) => reward.stamps === stampNumber);
+        const isRewardSlot = rewardIndex !== -1;
         const isClaimed = isRewardSlot && claimedStamps.has(stampNumber);
         const isClaimable = isRewardSlot && !isClaimed && points >= stampNumber;
+        const { Icon: RewardIcon } = isRewardSlot
+          ? getRewardVisual(rewardIndex, rewardTiers.length)
+          : { Icon: Gift };
 
         return (
           <div
@@ -65,7 +88,7 @@ function StampGrid({
               isClaimed ? (
                 <CheckCircle2 className="size-6 text-emerald-600/70 sm:size-9" />
               ) : (
-                <Gift
+                <RewardIcon
                   className={`size-6 sm:size-9 ${
                     isClaimable ? "kp-gift-claimable text-[#c45a23]" : "text-[#e89362]"
                   }`}
@@ -83,6 +106,34 @@ function StampGrid({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Explains what each reward-slot icon in the StampGrid above means. */
+function RewardLegend({ rewardTiers }: { rewardTiers: RewardTier[] }) {
+  if (rewardTiers.length === 0) return null;
+
+  const entries = [rewardTiers[0], rewardTiers[rewardTiers.length - 1]]
+    .filter((reward, index, all) => all.findIndex((item) => item.stamps === reward.stamps) === index)
+    .map((reward) => ({
+      reward,
+      ...getRewardVisual(
+        rewardTiers.findIndex((item) => item.stamps === reward.stamps),
+        rewardTiers.length
+      ),
+    }));
+
+  return (
+    <div className="mt-3 grid gap-1.5 rounded-xl bg-white/10 p-2.5">
+      {entries.map(({ reward, Icon, label, description }) => (
+        <div key={reward.stamps} className="flex items-center gap-2 text-xs text-[#fff4d5]/90">
+          <Icon className="size-4 shrink-0 text-[#fff4d5]" />
+          <span>
+            <span className="font-semibold">{label}</span> — {description}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -355,6 +406,7 @@ export function LoggedInCardHero({
           claimedRewardStamps={card.claimedRewardStamps}
           rewardTiers={card.rewardTiers}
         />
+        <RewardLegend rewardTiers={card.rewardTiers} />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm font-bold sm:text-base">
         <Badge className="bg-[#7a2f14] text-white hover:bg-[#7a2f14]">
