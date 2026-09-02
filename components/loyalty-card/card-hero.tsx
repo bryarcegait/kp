@@ -248,7 +248,7 @@ export function LoggedInCardHero({
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10">
         <CardHeaderRow />
 
-        <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_auto]">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
           <div>
             <p className="text-4xl font-black tracking-wide text-white sm:text-5xl">KP CARD</p>
             <p className="mt-6 text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
@@ -274,7 +274,7 @@ export function LoggedInCardHero({
           </div>
         </div>
 
-        <div className="mt-8 grid gap-4">
+        <div className="mt-6 grid gap-4">
           <StampRow points={points} rewardTiers={card.rewardTiers} />
         </div>
 

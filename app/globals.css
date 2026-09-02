@@ -313,6 +313,23 @@
     gap: 0.35rem;
     animation: kp-user-calendar-toast 0.72s ease-out both;
   }
+
+  .kp-card-flip-out {
+    animation: kp-card-flip-out 0.32s ease-in forwards;
+  }
+
+  .kp-card-flip-in {
+    animation: kp-card-flip-in 0.32s ease-out forwards;
+  }
+
+  .kp-confetti-piece {
+    position: absolute;
+    top: -10%;
+    animation-name: kp-confetti-fall;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    will-change: transform, opacity;
+  }
 }
 
 @keyframes kp-steam-rise {
@@ -402,13 +419,50 @@
   }
 }
 
+@keyframes kp-card-flip-out {
+  from {
+    transform: perspective(1200px) rotateY(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: perspective(1200px) rotateY(90deg);
+    opacity: 0.4;
+  }
+}
+
+@keyframes kp-card-flip-in {
+  from {
+    transform: perspective(1200px) rotateY(-90deg);
+    opacity: 0.4;
+  }
+  to {
+    transform: perspective(1200px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes kp-confetti-fall {
+  0% {
+    transform: translateY(0) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(115vh) translateX(var(--kp-confetti-drift, 0px))
+      rotate(var(--kp-confetti-spin, 360deg));
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .kp-kitchen-loader__steam,
   .kp-kitchen-loader__wing,
   .kp-kitchen-loader__flame,
   .kp-user-calendar-success,
   .kp-user-calendar-success::after,
-  .kp-user-calendar-toast {
+  .kp-user-calendar-toast,
+  .kp-card-flip-out,
+  .kp-card-flip-in,
+  .kp-confetti-piece {
     animation: none;
   }
 }

@@ -17,11 +17,7 @@ export default async function LoyaltyHomePage({
 
   return (
     <main className="min-h-screen bg-[#fff8ef] text-[#281713]">
-      {/* Keyed on session identity so a fresh login/logout (router.refresh())
-          remounts this component instead of leaving its `card` state stuck
-          on whatever was true at first render. */}
       <LoyaltyHomeClient
-        key={card?.loyaltyCode ?? "logged-out"}
         initialCard={card}
         qrDataUrl={qrDataUrl}
         initialVerified={params?.verified === "1"}
