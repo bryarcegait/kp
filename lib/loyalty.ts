@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 
 export type LoyaltyRewardTier = {
+  id: string;
   stamps: number;
   name: string;
 };
@@ -26,7 +27,11 @@ export async function getLoyaltyRewards(): Promise<LoyaltyRewardTier[]> {
     orderBy: { stampsRequired: "asc" },
   });
 
-  return rewards.map((reward) => ({ stamps: reward.stampsRequired, name: reward.rewardName }));
+  return rewards.map((reward) => ({
+    id: reward.id,
+    stamps: reward.stampsRequired,
+    name: reward.rewardName,
+  }));
 }
 
 export async function getLoyaltySpendPerStamp(): Promise<number> {
@@ -38,8 +43,17 @@ export function getNextLoyaltyReward(points: number, rewards: LoyaltyRewardTier[
   return rewards.find((reward) => points < reward.stamps) ?? null;
 }
 
-export function getRedeemableRewards(points: number, rewards: LoyaltyRewardTier[]) {
-  return rewards.filter((reward) => points >= reward.stamps);
+export function getRedeemableRewards(
+  points: number,
+  rewards: LoyaltyRewardTier[],
+  claimedRewardIds: Iterable<string> = []
+) {
+  const claimed = new Set(claimedRewardIds);
+  return rewards.filter((reward) => points >= reward.stamps && !claimed.has(reward.id));
+}
+
+export function isFinalLoyaltyTier(reward: LoyaltyRewardTier, rewards: LoyaltyRewardTier[]) {
+  return reward.stamps === Math.max(...rewards.map((item) => item.stamps));
 }
 
 /**

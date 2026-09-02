@@ -4,9 +4,29 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 const SWIPE_THRESHOLD_PX = 40;
 
-export function FlippableCard({ front, back }: { front: ReactNode; back: ReactNode }) {
+export function FlippableCard({
+  front,
+  back,
+  flipToBackSignal,
+}: {
+  front: ReactNode;
+  back: ReactNode;
+  /** Bump this (e.g. a counter) to force the card to the back face — used
+   * to auto-reveal newly-awarded stamps. The customer can still freely tap
+   * back to the front afterward; this only nudges the initial flip. */
+  flipToBackSignal?: number;
+}) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [height, setHeight] = useState<number | null>(null);
+  const [prevFlipSignal, setPrevFlipSignal] = useState(flipToBackSignal);
+
+  // React's documented pattern for adjusting state in response to a prop
+  // change during render, rather than in an effect (see the same pattern
+  // used for card/session syncing in loyalty-home-client.tsx).
+  if (flipToBackSignal !== prevFlipSignal) {
+    setPrevFlipSignal(flipToBackSignal);
+    if (flipToBackSignal) setIsFlipped(true);
+  }
   // These render the same content unconstrained (visibility:hidden, out of
   // the visible flow) purely to measure natural height. Measuring the
   // visible faces directly would be circular once we apply the computed

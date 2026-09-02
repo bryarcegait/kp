@@ -5,7 +5,14 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canManageLoyalty, canAwardLoyalty } from "@/lib/loyalty-access";
-import { getLoyaltyRewards, getLoyaltySpendPerStamp, getNextLoyaltyReward, applySpend } from "@/lib/loyalty";
+import {
+  getLoyaltyRewards,
+  getLoyaltySpendPerStamp,
+  getNextLoyaltyReward,
+  getRedeemableRewards,
+  isFinalLoyaltyTier,
+  applySpend,
+} from "@/lib/loyalty";
 
 const adjustSchema = z.object({
   customerId: z.string().min(1),
@@ -145,6 +152,7 @@ export async function redeemLoyaltyReward(
   const rewards = await getLoyaltyRewards();
   const reward = rewards.find((item) => item.stamps === parsed.data.rewardStamps);
   if (!reward) return { error: "Reward not found." };
+  const isFinalTier = isFinalLoyaltyTier(reward, rewards);
 
   const result = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM customers WHERE id = ${parsed.data.customerId} FOR UPDATE`;
@@ -156,20 +164,40 @@ export async function redeemLoyaltyReward(
       return { error: "Customer does not have enough stamps for this reward." } as const;
     }
 
-    const updated = await tx.customer.update({
-      where: { id: customer.id },
-      data: {
-        loyaltyPoints: { decrement: reward.stamps },
-        redeemedPoints: { increment: reward.stamps },
-      },
+    const alreadyClaimed = await tx.loyaltyRewardClaim.findUnique({
+      where: { customerId_rewardId: { customerId: customer.id, rewardId: reward.id } },
     });
+    if (alreadyClaimed) {
+      return { error: "This reward was already claimed." } as const;
+    }
+
+    // Only the final (highest) tier resets the card — claiming an earlier
+    // tier just marks it claimed so the customer keeps progressing toward
+    // the next one instead of losing their stamps.
+    let balanceAfter = customer.loyaltyPoints;
+    if (isFinalTier) {
+      balanceAfter = 0;
+      await tx.customer.update({
+        where: { id: customer.id },
+        data: { loyaltyPoints: 0, redeemedPoints: { increment: reward.stamps } },
+      });
+      await tx.loyaltyRewardClaim.deleteMany({ where: { customerId: customer.id } });
+    } else {
+      await tx.customer.update({
+        where: { id: customer.id },
+        data: { redeemedPoints: { increment: reward.stamps } },
+      });
+      await tx.loyaltyRewardClaim.create({
+        data: { customerId: customer.id, rewardId: reward.id },
+      });
+    }
 
     await tx.loyaltyTransaction.create({
       data: {
         customerId: customer.id,
         type: "redeemed",
-        points: -reward.stamps,
-        balanceAfter: updated.loyaltyPoints,
+        points: isFinalTier ? -customer.loyaltyPoints : 0,
+        balanceAfter,
         rewardName: reward.name,
         remarks: reward.name,
         createdById: guard.session.user.id,
@@ -290,15 +318,31 @@ export async function findCustomerByLoyaltyCode(loyaltyCode: string) {
   const [customer, rewards] = await Promise.all([
     db.customer.findUnique({
       where: { loyaltyCode },
-      select: { id: true, displayName: true, loyaltyPoints: true },
+      select: {
+        id: true,
+        displayName: true,
+        loyaltyPoints: true,
+        loyaltyRewardClaims: { select: { rewardId: true } },
+      },
     }),
     getLoyaltyRewards(),
   ]);
   if (!customer) return { error: "No account found for that QR code." } as const;
 
-  const redeemableRewards = rewards.filter((reward) => customer.loyaltyPoints >= reward.stamps);
+  const redeemableRewards = getRedeemableRewards(
+    customer.loyaltyPoints,
+    rewards,
+    customer.loyaltyRewardClaims.map((claim) => claim.rewardId)
+  );
 
-  return { customer: { ...customer, redeemableRewards } } as const;
+  return {
+    customer: {
+      id: customer.id,
+      displayName: customer.displayName,
+      loyaltyPoints: customer.loyaltyPoints,
+      redeemableRewards,
+    },
+  } as const;
 }
 
 export async function upsertLoyaltyReward(

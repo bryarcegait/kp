@@ -12,7 +12,6 @@ import {
   LogOut,
   QrCode,
   RotateCw,
-  UserPlus,
   Utensils,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -28,23 +27,23 @@ const actionButtonSoft = "bg-[#fff4d5] text-[#7a2f14] hover:bg-[#ffe9bd]";
 /**
  * Stamps grid for the "back" of the card. A slot's gift icon communicates
  * three states: not yet reached (dim), currently claimable — points already
- * cover it (bright + pulsing), or claimed — lifetimePoints crossed this
- * threshold before but the current balance no longer covers it, which only
- * happens after a redemption (muted checkmark). There's no separate
- * "claimed" flag in the schema, so this is inferred from the two point
- * totals we do have.
+ * cover it and it hasn't been claimed this cycle (bright + pulsing), or
+ * claimed this cycle already (muted checkmark). Claiming the final tier
+ * resets the stamp count and clears claims, so the grid starts a fresh
+ * cycle rather than losing progress on every claim.
  */
 function StampGrid({
   points,
-  lifetimePoints,
+  claimedRewardStamps,
   rewardTiers,
 }: {
   points: number;
-  lifetimePoints: number;
+  claimedRewardStamps: number[];
   rewardTiers: { stamps: number; name: string }[];
 }) {
   const maxStamps = rewardTiers.length > 0 ? Math.max(...rewardTiers.map((r) => r.stamps)) : 10;
   const rewardAtStamp = new Set(rewardTiers.map((r) => r.stamps));
+  const claimedStamps = new Set(claimedRewardStamps);
 
   return (
     <div className="grid grid-cols-5 gap-2 sm:gap-3">
@@ -52,8 +51,8 @@ function StampGrid({
         const stampNumber = index + 1;
         const isEarned = points >= stampNumber;
         const isRewardSlot = rewardAtStamp.has(stampNumber);
-        const isClaimable = isRewardSlot && points >= stampNumber;
-        const isClaimed = isRewardSlot && !isClaimable && lifetimePoints >= stampNumber;
+        const isClaimed = isRewardSlot && claimedStamps.has(stampNumber);
+        const isClaimable = isRewardSlot && !isClaimed && points >= stampNumber;
 
         return (
           <div
@@ -236,10 +235,8 @@ function FlipHint({ label }: { label: string }) {
 }
 
 export function LoggedOutCardHero({
-  onRegister,
   onLogin,
 }: {
-  onRegister: () => void;
   onLogin: () => void;
 }) {
   const cardFace = "grid h-full content-start gap-1 rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-5 text-[#fff4d5] shadow-lg sm:p-7";
@@ -273,10 +270,10 @@ export function LoggedOutCardHero({
     <div className={cardFace}>
       <CardHeaderRow />
       <div className="mt-5">
-        <StampGrid points={0} lifetimePoints={0} rewardTiers={[]} />
+        <StampGrid points={0} claimedRewardStamps={[]} rewardTiers={[]} />
       </div>
       <p className="mt-3 text-center text-sm leading-relaxed text-[#fff4d5]/90 sm:text-base">
-        Register to start collecting stamps every time you order — every ₱200 spent earns a
+        Log in to start collecting stamps every time you order — every ₱200 spent earns a
         stamp toward free drinks and free meals.
       </p>
       <FlipHint label="Tap or swipe to see your QR code" />
@@ -290,18 +287,10 @@ export function LoggedOutCardHero({
         <button
           type="button"
           onClick={onLogin}
-          className={`${actionButtonBase} ${actionButtonSoft}`}
+          className={`${actionButtonBase} ${actionButtonSolid}`}
         >
           <LogIn className="size-4" />
           Login
-        </button>
-        <button
-          type="button"
-          onClick={onRegister}
-          className={`${actionButtonBase} ${actionButtonSolid}`}
-        >
-          <UserPlus className="size-4" />
-          Register
         </button>
       </div>
     </div>
@@ -312,10 +301,12 @@ export function LoggedInCardHero({
   card,
   qrDataUrl,
   onLogout,
+  flipToBackSignal,
 }: {
   card: CustomerLoyaltyCard;
   qrDataUrl: string;
   onLogout: () => void;
+  flipToBackSignal?: number;
 }) {
   const points = card.loyaltyPoints;
   const cardFace = "grid h-full content-start gap-1 rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-5 text-[#fff4d5] shadow-lg sm:p-7";
@@ -359,7 +350,11 @@ export function LoggedInCardHero({
     <div className={cardFace}>
       <CardHeaderRow />
       <div className="mt-5">
-        <StampGrid points={points} lifetimePoints={card.lifetimePoints} rewardTiers={card.rewardTiers} />
+        <StampGrid
+          points={points}
+          claimedRewardStamps={card.claimedRewardStamps}
+          rewardTiers={card.rewardTiers}
+        />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm font-bold sm:text-base">
         <Badge className="bg-[#7a2f14] text-white hover:bg-[#7a2f14]">
@@ -384,7 +379,7 @@ export function LoggedInCardHero({
 
   return (
     <div className="grid gap-4">
-      <FlippableCard front={front} back={back} />
+      <FlippableCard front={front} back={back} flipToBackSignal={flipToBackSignal} />
 
       <div className="flex gap-3">
         <Link href="/order" className={`${actionButtonBase} ${actionButtonSoft}`}>
@@ -415,8 +410,11 @@ export function LoggedInCardHero({
               >
                 <div className="flex flex-wrap justify-between gap-2 font-medium">
                   <span>
-                    {transaction.points > 0 ? "+" : ""}
-                    {transaction.points} stamp{Math.abs(transaction.points) === 1 ? "" : "s"}
+                    {transaction.type === "redeemed"
+                      ? "Reward claimed"
+                      : `${transaction.points > 0 ? "+" : ""}${transaction.points} stamp${
+                          Math.abs(transaction.points) === 1 ? "" : "s"
+                        }`}
                   </span>
                   <span>{formatDate(transaction.createdAt)}</span>
                 </div>

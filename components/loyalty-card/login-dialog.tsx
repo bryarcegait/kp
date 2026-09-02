@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { loginCustomerLoyalty } from "@/app/customer-loyalty-actions";
+import { OAuthButtons } from "@/components/loyalty-card/oauth-buttons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -14,13 +15,13 @@ import { Label } from "@/components/ui/label";
 export function LoginDialog({
   open,
   onOpenChange,
-  onSwitchToRegister,
-  banner,
+  googleEnabled,
+  facebookEnabled,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSwitchToRegister: () => void;
-  banner?: string;
+  googleEnabled: boolean;
+  facebookEnabled: boolean;
 }) {
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -49,13 +50,12 @@ export function LoginDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Log in to your eLoyalty Card</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            New here? Continue with Google or Facebook below to create your card instantly.
+          </p>
         </DialogHeader>
 
-        {banner ? (
-          <p className="rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-            {banner}
-          </p>
-        ) : null}
+        <OAuthButtons googleEnabled={googleEnabled} facebookEnabled={facebookEnabled} />
 
         <form onSubmit={handleSubmit} className="grid gap-3">
           <div className="grid gap-2">
@@ -80,16 +80,6 @@ export function LoginDialog({
             {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
             Log in
           </Button>
-          <button
-            type="button"
-            onClick={() => {
-              onOpenChange(false);
-              onSwitchToRegister();
-            }}
-            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-          >
-            No card yet? Register
-          </button>
         </form>
       </DialogContent>
     </Dialog>

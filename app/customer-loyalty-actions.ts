@@ -11,7 +11,6 @@ import {
   getCustomerSession,
   checkLoginRateLimit,
 } from "@/lib/customer-auth";
-import { sendVerificationEmail } from "@/lib/mailer";
 
 export type CustomerLoyaltyCard = {
   displayName: string;
@@ -22,6 +21,7 @@ export type CustomerLoyaltyCard = {
   redeemedPoints: number;
   nextRewardStamps: number | null;
   rewardTiers: { stamps: number; name: string }[];
+  claimedRewardStamps: number[];
   latestTransactions: {
     id: string;
     type: string;
@@ -53,25 +53,9 @@ const loginSchema = z.object({
   password: passwordSchema,
 });
 
-const signupSchema = z
-  .object({
-    nickname: z.string().trim().min(2, "Nickname is required.").max(120),
-    email: z.string().trim().email("Enter a valid email."),
-    password: passwordSchema,
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match.",
-    path: ["confirmPassword"],
-  });
-
 function stringValue(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
-}
-
-function hashToken(token: string) {
-  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 function generateLoyaltyCode() {
@@ -87,10 +71,13 @@ async function getCustomerCard(customerId: string): Promise<CustomerLoyaltyCard>
           orderBy: { createdAt: "desc" },
           take: 6,
         },
+        loyaltyRewardClaims: { select: { rewardId: true } },
       },
     }),
     getLoyaltyRewards(),
   ]);
+
+  const claimedRewardIds = new Set(customer.loyaltyRewardClaims.map((claim) => claim.rewardId));
 
   return {
     displayName: customer.displayName,
@@ -101,6 +88,9 @@ async function getCustomerCard(customerId: string): Promise<CustomerLoyaltyCard>
     redeemedPoints: customer.redeemedPoints,
     nextRewardStamps: getNextLoyaltyReward(customer.loyaltyPoints, rewardTiers)?.stamps ?? null,
     rewardTiers,
+    claimedRewardStamps: rewardTiers
+      .filter((reward) => claimedRewardIds.has(reward.id))
+      .map((reward) => reward.stamps),
     latestTransactions: customer.loyaltyTransactions.map((transaction) => ({
       id: transaction.id,
       type: transaction.type,
@@ -163,51 +153,49 @@ export async function loginCustomerLoyalty(
   return { card: await getCustomerCard(customer.id) };
 }
 
-export async function signupCustomerLoyalty(
-  formData: FormData
-): Promise<CustomerLoyaltyResult> {
-  const parsed = signupSchema.safeParse({
-    nickname: stringValue(formData, "nickname"),
-    email: stringValue(formData, "email"),
-    password: stringValue(formData, "password"),
-    confirmPassword: stringValue(formData, "confirmPassword"),
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Please check the form." };
-  }
-
-  const email = parsed.data.email.toLowerCase();
-  const existing = await db.customer.findUnique({ where: { email } });
-  if (existing) {
-    return { error: "This email already has an eLoyalty account. Please log in." };
-  }
-
-  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-  const verificationToken = crypto.randomBytes(32).toString("hex");
-  const verificationTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-  await db.customer.create({
-    data: {
-      displayName: parsed.data.nickname,
-      email,
-      passwordHash,
-      loyaltyCode: generateLoyaltyCode(),
-      emailVerified: false,
-      verificationTokenHash: hashToken(verificationToken),
-      verificationTokenExpiresAt,
-    },
-  });
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-  const verifyUrl = `${baseUrl}/api/customer/verify-email?token=${verificationToken}`;
-  await sendVerificationEmail(email, verifyUrl);
-
-  return {
-    message: "Account created! Check your email for a verification link before logging in.",
-  };
-}
-
 export async function logoutCustomer() {
   await clearCustomerSession();
+}
+
+/**
+ * Finds or creates the Customer for an OAuth sign-in. If an account with a
+ * matching (provider-verified) email already exists — e.g. they originally
+ * signed up with a password — this links the provider id to it instead of
+ * creating a duplicate.
+ */
+export async function findOrCreateOAuthCustomer({
+  provider,
+  providerId,
+  email,
+  displayName,
+}: {
+  provider: "google" | "facebook";
+  providerId: string;
+  email: string;
+  displayName: string;
+}) {
+  const normalizedEmail = email.toLowerCase();
+  const providerData =
+    provider === "google" ? { googleId: providerId } : { facebookId: providerId };
+
+  const existingByProvider = await db.customer.findUnique({ where: providerData });
+  if (existingByProvider) return existingByProvider;
+
+  const existingByEmail = await db.customer.findUnique({ where: { email: normalizedEmail } });
+  if (existingByEmail) {
+    return db.customer.update({
+      where: { id: existingByEmail.id },
+      data: { ...providerData, emailVerified: true },
+    });
+  }
+
+  return db.customer.create({
+    data: {
+      displayName,
+      email: normalizedEmail,
+      loyaltyCode: generateLoyaltyCode(),
+      emailVerified: true,
+      ...providerData,
+    },
+  });
 }

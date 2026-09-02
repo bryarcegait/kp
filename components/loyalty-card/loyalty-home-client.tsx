@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { logoutCustomer, type CustomerLoyaltyCard } from "@/app/customer-loyalty-actions";
 import { LoggedInCardHero, LoggedOutCardHero } from "@/components/loyalty-card/card-hero";
-import { RegisterDialog } from "@/components/loyalty-card/register-dialog";
 import { LoginDialog } from "@/components/loyalty-card/login-dialog";
 import { WingConfetti } from "@/components/loyalty-card/wing-confetti";
 
@@ -27,25 +26,41 @@ function buildEarnedMessage(previous: CustomerLoyaltyCard, next: CustomerLoyalty
   }`;
 }
 
+function buildClaimedMessage(previous: CustomerLoyaltyCard, next: CustomerLoyaltyCard) {
+  const latest = next.latestTransactions[0];
+  if (!latest || latest.type !== "redeemed") return null;
+  if (previous.latestTransactions.some((transaction) => transaction.id === latest.id)) return null;
+
+  return `🎉 ${latest.rewardName ?? "Reward"} claimed! Enjoy!`;
+}
+
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  google_unconfigured: "Google sign-in isn't set up yet.",
+  google_failed: "Google sign-in didn't go through. Please try again.",
+  google_email_unverified: "Your Google account doesn't have a verified email.",
+  facebook_unconfigured: "Facebook sign-in isn't set up yet.",
+  facebook_failed: "Facebook sign-in didn't go through. Please try again.",
+  facebook_no_email: "We couldn't get an email from Facebook. Please allow email access, or sign up with email instead.",
+};
+
 export function LoyaltyHomeClient({
   initialCard,
   qrDataUrl,
-  initialVerified,
-  initialVerifyError,
+  initialOAuthError,
+  googleEnabled,
+  facebookEnabled,
 }: {
   initialCard: CustomerLoyaltyCard | null;
   qrDataUrl: string | null;
-  initialVerified: boolean;
-  initialVerifyError: string | null;
+  initialOAuthError: string | null;
+  googleEnabled: boolean;
+  facebookEnabled: boolean;
 }) {
   const [card, setCard] = useState(initialCard);
   const [prevInitialCard, setPrevInitialCard] = useState(initialCard);
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(initialVerified);
-  const [loginBanner, setLoginBanner] = useState(
-    initialVerified ? "Email verified! Log in to continue." : ""
-  );
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [confettiBurst, setConfettiBurst] = useState(0);
+  const [flipToBackSignal, setFlipToBackSignal] = useState(0);
   const router = useRouter();
   const hasHandledQuery = useRef(false);
   const confettiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,18 +109,11 @@ export function LoyaltyHomeClient({
     if (hasHandledQuery.current) return;
     hasHandledQuery.current = true;
 
-    if (initialVerifyError) {
-      toast.error(
-        initialVerifyError === "invalid"
-          ? "That verification link is invalid or has expired. Please sign up again."
-          : "Something went wrong verifying your email."
-      );
-    }
-
-    if (initialVerified || initialVerifyError) {
+    if (initialOAuthError) {
+      toast.error(OAUTH_ERROR_MESSAGES[initialOAuthError] ?? "Sign-in didn't go through. Please try again.");
       window.history.replaceState(null, "", "/");
     }
-  }, [initialVerified, initialVerifyError]);
+  }, [initialOAuthError]);
 
   useEffect(() => {
     if (!card) return;
@@ -120,10 +128,13 @@ export function LoyaltyHomeClient({
 
         setCard((previous) => {
           if (!previous) return previous;
-          const message = buildEarnedMessage(previous, data.card);
+          const earnedMessage = buildEarnedMessage(previous, data.card);
+          const claimedMessage = buildClaimedMessage(previous, data.card);
+          const message = earnedMessage ?? claimedMessage;
           if (message) {
             toast.success(message);
             setConfettiBurst((n) => n + 1);
+            if (earnedMessage) setFlipToBackSignal((n) => n + 1);
             if (confettiTimerRef.current) clearTimeout(confettiTimerRef.current);
             confettiTimerRef.current = setTimeout(() => setConfettiBurst(0), CONFETTI_DURATION_MS);
           }
@@ -152,34 +163,22 @@ export function LoyaltyHomeClient({
 
       <div className={flipClassName} style={{ transformStyle: "preserve-3d" }}>
         {displayedLoggedIn && card && qrDataUrl ? (
-          <LoggedInCardHero card={card} qrDataUrl={qrDataUrl} onLogout={handleLogout} />
-        ) : (
-          <LoggedOutCardHero
-            onRegister={() => setIsRegisterOpen(true)}
-            onLogin={() => {
-              setLoginBanner("");
-              setIsLoginOpen(true);
-            }}
+          <LoggedInCardHero
+            card={card}
+            qrDataUrl={qrDataUrl}
+            onLogout={handleLogout}
+            flipToBackSignal={flipToBackSignal}
           />
+        ) : (
+          <LoggedOutCardHero onLogin={() => setIsLoginOpen(true)} />
         )}
       </div>
 
-      <RegisterDialog
-        open={isRegisterOpen}
-        onOpenChange={setIsRegisterOpen}
-        onSwitchToLogin={() => {
-          setLoginBanner("");
-          setIsLoginOpen(true);
-        }}
-      />
       <LoginDialog
         open={isLoginOpen}
-        onOpenChange={(open) => {
-          setIsLoginOpen(open);
-          if (!open) setLoginBanner("");
-        }}
-        onSwitchToRegister={() => setIsRegisterOpen(true)}
-        banner={loginBanner}
+        onOpenChange={setIsLoginOpen}
+        googleEnabled={googleEnabled}
+        facebookEnabled={facebookEnabled}
       />
     </div>
   );

@@ -226,10 +226,13 @@ model Customer {
   email                      String    @unique
   address                    String?   @db.Text
   birthday                   DateTime? @db.Date
-  passwordHash               String    @db.Text
+  // Null for accounts created via Google/Facebook that never set a password.
+  passwordHash               String?   @db.Text
   emailVerified              Boolean   @default(false)
   verificationTokenHash      String?   @unique
   verificationTokenExpiresAt DateTime?
+  googleId                   String?   @unique
+  facebookId                 String?   @unique
   loyaltyCode                String    @unique
   loyaltyPoints              Int       @default(0)
   lifetimePoints             Int       @default(0)
@@ -241,6 +244,7 @@ model Customer {
 
   orders              CustomerOrder[]
   loyaltyTransactions LoyaltyTransaction[]
+  loyaltyRewardClaims LoyaltyRewardClaim[]
 
   @@index([displayName])
   @@map("customers")
@@ -255,7 +259,27 @@ model LoyaltyReward {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  claims LoyaltyRewardClaim[]
+
   @@map("loyalty_rewards")
+}
+
+// Tracks which reward tiers a customer has already claimed in their current
+// stamp cycle, since redeeming a mid-tier reward no longer resets their
+// stamp balance — only claiming the final (highest) tier does, which also
+// clears these rows so every tier can be claimed again next cycle.
+model LoyaltyRewardClaim {
+  id         String   @id @default(cuid())
+  customerId String
+  rewardId   String
+  claimedAt  DateTime @default(now())
+
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reward   LoyaltyReward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, rewardId])
+  @@index([rewardId])
+  @@map("loyalty_reward_claims")
 }
 
 model LoyaltySettings {
