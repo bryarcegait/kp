@@ -45,3 +45,28 @@ export async function clearCustomerSession() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
 }
+
+const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const MAX_LOGIN_ATTEMPTS = 8;
+const loginAttempts = new Map<string, { count: number; windowStart: number }>();
+
+/**
+ * Best-effort brute-force guard for customer login, keyed by email.
+ * In-memory only — resets on server restart and isn't shared across
+ * serverless instances, so it slows down casual brute-forcing rather than
+ * guaranteeing a hard cap. Upgrade to a shared store (e.g. Redis/Vercel KV)
+ * if this needs to be airtight.
+ */
+export function checkLoginRateLimit(email: string): boolean {
+  const now = Date.now();
+  const key = email.toLowerCase();
+  const entry = loginAttempts.get(key);
+
+  if (!entry || now - entry.windowStart > LOGIN_ATTEMPT_WINDOW_MS) {
+    loginAttempts.set(key, { count: 1, windowStart: now });
+    return true;
+  }
+
+  entry.count += 1;
+  return entry.count <= MAX_LOGIN_ATTEMPTS;
+}

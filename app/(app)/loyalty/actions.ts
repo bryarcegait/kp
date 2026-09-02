@@ -204,12 +204,15 @@ export async function awardLoyaltyStamps(
   const rewards = await getLoyaltyRewards();
 
   const result = await db.$transaction(async (tx) => {
-    const customer = await tx.customer.findUnique({
-      where: { loyaltyCode: parsed.data.loyaltyCode },
-    });
+    // Lock and read the row in the same statement: a locking read always
+    // sees the latest committed data, so this can't observe a stale
+    // pendingStampAmount left over from a concurrent award that's still
+    // running (a plain findUnique before the lock could).
+    const rows = await tx.$queryRaw<
+      { id: string; displayName: string; pendingStampAmount: string; loyaltyPoints: number }[]
+    >`SELECT id, displayName, pendingStampAmount, loyaltyPoints FROM customers WHERE loyaltyCode = ${parsed.data.loyaltyCode} FOR UPDATE`;
+    const customer = rows[0];
     if (!customer) return { error: "No account found for that QR code." } as const;
-
-    await tx.$queryRaw`SELECT id FROM customers WHERE id = ${customer.id} FOR UPDATE`;
 
     const lastTransaction = await tx.loyaltyTransaction.findFirst({
       where: { customerId: customer.id, type: "earned" },
@@ -260,7 +263,9 @@ export async function awardLoyaltyStamps(
         ? `You earned ${stampsEarned} stamp${stampsEarned === 1 ? "" : "s"}! ${
             nextReward
               ? `${nextReward.stamps - updated.loyaltyPoints} more to get ${nextReward.name}.`
-              : "You have a reward ready to redeem!"
+              : rewards.length > 0
+                ? "You have a reward ready to redeem!"
+                : "No reward tiers are configured yet — set one up in Program Settings."
           }`
         : `₱${parsed.data.amount.toFixed(2)} recorded. ₱${(spendPerStamp - newPendingAmount).toFixed(2)} more to earn a stamp.`;
 

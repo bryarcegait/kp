@@ -5,7 +5,12 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getLoyaltyRewards, getNextLoyaltyReward } from "@/lib/loyalty";
-import { createCustomerSession, clearCustomerSession, getCustomerSession } from "@/lib/customer-auth";
+import {
+  createCustomerSession,
+  clearCustomerSession,
+  getCustomerSession,
+  checkLoginRateLimit,
+} from "@/lib/customer-auth";
 import { sendVerificationEmail } from "@/lib/mailer";
 
 export type CustomerLoyaltyCard = {
@@ -38,6 +43,10 @@ const passwordSchema = z
   .string()
   .min(6, "Password must be at least 6 characters.")
   .max(100, "Password is too long.");
+
+// Used to keep login timing/response identical whether or not the email is
+// registered, so failed attempts can't be used to enumerate accounts.
+const DUMMY_PASSWORD_HASH = "$2b$10$qfqR9Ek4JuMzfETP5e4BGuN1PPIXeAxrMgCNDna5pR8tyx7Y7quKC";
 
 const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email."),
@@ -128,17 +137,26 @@ export async function loginCustomerLoyalty(
   }
 
   const email = parsed.data.email.toLowerCase();
+
+  if (!checkLoginRateLimit(email)) {
+    return { error: "Too many login attempts. Please wait a few minutes and try again." };
+  }
+
   const customer = await db.customer.findUnique({ where: { email } });
-  if (!customer) {
-    return { error: "No eLoyalty account found for this email. Please sign up." };
+  // Compare against a dummy hash when there's no account so the response
+  // doesn't reveal via timing or message text whether this email is
+  // registered — both cases return the exact same error.
+  const isPasswordValid = await bcrypt.compare(
+    parsed.data.password,
+    customer?.passwordHash ?? DUMMY_PASSWORD_HASH
+  );
+  if (!customer || !isPasswordValid) {
+    return { error: "Incorrect email or password." };
   }
 
   if (!customer.emailVerified) {
     return { error: "Please verify your email before logging in. Check your inbox." };
   }
-
-  const isPasswordValid = await bcrypt.compare(parsed.data.password, customer.passwordHash);
-  if (!isPasswordValid) return { error: "Incorrect email or password." };
 
   await createCustomerSession(customer.id);
 
