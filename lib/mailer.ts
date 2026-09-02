@@ -1,38 +1,26 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+let resend: Resend | null = null;
 
-function getTransporter() {
-  if (transporter) return transporter;
+function getResend() {
+  if (resend) return resend;
 
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT ?? 465);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASSWORD;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY must be set to send email.");
 
-  if (!host || !user || !pass) {
-    throw new Error("SMTP_HOST, SMTP_USER, and SMTP_PASSWORD must be set to send email.");
-  }
-
-  transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-  });
-
-  return transporter;
+  resend = new Resend(apiKey);
+  return resend;
 }
 
 export async function sendVerificationEmail(to: string, verifyUrl: string) {
-  const from = process.env.SMTP_FROM || "Kanto't Pakpakan <noreply@kantotpakpakan.com>";
+  const from = process.env.RESEND_FROM || "Kanto't Pakpakan <onboarding@resend.dev>";
 
-  if (process.env.NODE_ENV !== "production" && (!process.env.SMTP_HOST || !process.env.SMTP_USER)) {
+  if (process.env.NODE_ENV !== "production" && !process.env.RESEND_API_KEY) {
     console.log(`[dev] Verification link for ${to}: ${verifyUrl}`);
     return;
   }
 
-  await getTransporter().sendMail({
+  const { error } = await getResend().emails.send({
     from,
     to,
     subject: "Verify your Kanto't Pakpakan eLoyalty account",
@@ -50,4 +38,8 @@ export async function sendVerificationEmail(to: string, verifyUrl: string) {
       </div>
     `,
   });
+
+  if (error) {
+    throw new Error(`Resend failed to send verification email: ${error.message}`);
+  }
 }
