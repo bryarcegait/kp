@@ -58,11 +58,6 @@ export function OAuthButtons({
           Continue with Facebook
         </a>
       ) : null}
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <div className="h-px flex-1 bg-border" />
-        or
-        <div className="h-px flex-1 bg-border" />
-      </div>
     </div>
   );
 }

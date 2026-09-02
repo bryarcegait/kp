@@ -1,16 +1,9 @@
 "use server";
 
 import crypto from "crypto";
-import bcrypt from "bcryptjs";
-import { z } from "zod";
 import { db } from "@/lib/db";
 import { getLoyaltyRewards, getNextLoyaltyReward } from "@/lib/loyalty";
-import {
-  createCustomerSession,
-  clearCustomerSession,
-  getCustomerSession,
-  checkLoginRateLimit,
-} from "@/lib/customer-auth";
+import { clearCustomerSession, getCustomerSession } from "@/lib/customer-auth";
 
 export type CustomerLoyaltyCard = {
   displayName: string;
@@ -32,31 +25,6 @@ export type CustomerLoyaltyCard = {
     createdAt: string;
   }[];
 };
-
-export type CustomerLoyaltyResult = {
-  error?: string;
-  message?: string;
-  card?: CustomerLoyaltyCard;
-};
-
-const passwordSchema = z
-  .string()
-  .min(6, "Password must be at least 6 characters.")
-  .max(100, "Password is too long.");
-
-// Used to keep login timing/response identical whether or not the email is
-// registered, so failed attempts can't be used to enumerate accounts.
-const DUMMY_PASSWORD_HASH = "$2b$10$qfqR9Ek4JuMzfETP5e4BGuN1PPIXeAxrMgCNDna5pR8tyx7Y7quKC";
-
-const loginSchema = z.object({
-  email: z.string().trim().email("Enter a valid email."),
-  password: passwordSchema,
-});
-
-function stringValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-  return typeof value === "string" ? value : "";
-}
 
 function generateLoyaltyCode() {
   return crypto.randomBytes(9).toString("base64url");
@@ -112,45 +80,6 @@ export async function getCurrentCustomerCard(): Promise<CustomerLoyaltyCard | nu
   } catch {
     return null;
   }
-}
-
-export async function loginCustomerLoyalty(
-  formData: FormData
-): Promise<CustomerLoyaltyResult> {
-  const parsed = loginSchema.safeParse({
-    email: stringValue(formData, "email"),
-    password: stringValue(formData, "password"),
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Please check the form." };
-  }
-
-  const email = parsed.data.email.toLowerCase();
-
-  if (!checkLoginRateLimit(email)) {
-    return { error: "Too many login attempts. Please wait a few minutes and try again." };
-  }
-
-  const customer = await db.customer.findUnique({ where: { email } });
-  // Compare against a dummy hash when there's no account so the response
-  // doesn't reveal via timing or message text whether this email is
-  // registered — both cases return the exact same error.
-  const isPasswordValid = await bcrypt.compare(
-    parsed.data.password,
-    customer?.passwordHash ?? DUMMY_PASSWORD_HASH
-  );
-  if (!customer || !isPasswordValid) {
-    return { error: "Incorrect email or password." };
-  }
-
-  if (!customer.emailVerified) {
-    return { error: "Please verify your email before logging in. Check your inbox." };
-  }
-
-  await createCustomerSession(customer.id);
-
-  return { card: await getCustomerCard(customer.id) };
 }
 
 export async function logoutCustomer() {
