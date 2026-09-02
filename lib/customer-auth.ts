@@ -2,7 +2,9 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
 const COOKIE_NAME = "kp_customer_session";
-const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
+// Customers stay logged in until they explicitly log out — 10 years is the
+// practical stand-in for "no expiration" (JWTs require some expiry value).
+const MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10;
 
 function getSecret() {
   const secret = process.env.CUSTOMER_AUTH_SECRET;

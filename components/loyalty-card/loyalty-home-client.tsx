@@ -97,7 +97,13 @@ export function LoyaltyHomeClient({
       {card && qrDataUrl ? (
         <LoggedInCardHero card={card} qrDataUrl={qrDataUrl} onLogout={handleLogout} />
       ) : (
-        <LoggedOutCardHero onRegister={() => setIsRegisterOpen(true)} />
+        <LoggedOutCardHero
+          onRegister={() => setIsRegisterOpen(true)}
+          onLogin={() => {
+            setLoginBanner("");
+            setIsLoginOpen(true);
+          }}
+        />
       )}
 
       <RegisterDialog

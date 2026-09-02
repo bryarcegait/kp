@@ -1,8 +1,14 @@
 import Image from "next/image";
-import { Gift, History, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Download, Gift, History, LogIn, LogOut, Sparkles, UserPlus, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { CustomerLoyaltyCard } from "@/app/customer-loyalty-actions";
 import { formatDate } from "@/lib/format";
+
+const actionButtonBase =
+  "flex h-12 flex-1 items-center justify-center gap-2 rounded-full text-sm font-semibold shadow-sm transition active:scale-[0.98]";
+const actionButtonSolid = "bg-[#c45a23] text-white hover:bg-[#a94618]";
+const actionButtonSoft = "bg-[#fff4d5] text-[#7a2f14] hover:bg-[#ffe9bd]";
 
 function StampRow({ points, rewardTiers }: { points: number; rewardTiers: { stamps: number; name: string }[] }) {
   const maxStamps = rewardTiers.length > 0 ? Math.max(...rewardTiers.map((r) => r.stamps)) : 10;
@@ -40,13 +46,35 @@ function StampRow({ points, rewardTiers }: { points: number; rewardTiers: { stam
   );
 }
 
-export function LoggedOutCardHero({ onRegister }: { onRegister: () => void }) {
+function CardLogo() {
+  return (
+    <Image
+      src="/kanto-logo.png"
+      alt="Kanto't Pakpakan"
+      width={56}
+      height={56}
+      className="size-12 rounded-full bg-white object-contain p-1 shadow-sm sm:size-14"
+      priority
+    />
+  );
+}
+
+export function LoggedOutCardHero({
+  onRegister,
+  onLogin,
+}: {
+  onRegister: () => void;
+  onLogin: () => void;
+}) {
   return (
     <div className="grid gap-6">
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
-          eLoyalty Card
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
+            eLoyalty Card
+          </p>
+          <CardLogo />
+        </div>
         <p className="mt-2 text-4xl font-black tracking-wide text-white sm:text-5xl">KP CARD</p>
         <div className="mt-8">
           <p className="text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
@@ -62,13 +90,24 @@ export function LoggedOutCardHero({ onRegister }: { onRegister: () => void }) {
           stamp toward free drinks and free meals.
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onRegister}
-        className="h-12 rounded-xl bg-[#c45a23] text-base font-semibold text-white shadow-sm transition hover:bg-[#a94618]"
-      >
-        Register for your eLoyalty Card
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onLogin}
+          className={`${actionButtonBase} ${actionButtonSoft}`}
+        >
+          <LogIn className="size-4" />
+          Login
+        </button>
+        <button
+          type="button"
+          onClick={onRegister}
+          className={`${actionButtonBase} ${actionButtonSolid}`}
+        >
+          <UserPlus className="size-4" />
+          Register
+        </button>
+      </div>
     </div>
   );
 }
@@ -89,9 +128,12 @@ export function LoggedInCardHero({
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10">
         <div className="grid gap-8 lg:grid-cols-[1fr_auto]">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
-              eLoyalty Card
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
+                eLoyalty Card
+              </p>
+              <CardLogo />
+            </div>
             <p className="mt-2 text-4xl font-black tracking-wide text-white sm:text-5xl">
               KP CARD
             </p>
@@ -107,6 +149,14 @@ export function LoggedInCardHero({
             {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, generated server-side, not eligible for next/image optimization */}
             <img src={qrDataUrl} alt="Your loyalty QR code" width={160} height={160} />
             <p className="text-xs font-semibold text-[#7a2f14]">Show this at checkout</p>
+            <a
+              href={qrDataUrl}
+              download="kp-loyalty-qr.png"
+              className="flex items-center gap-1.5 rounded-full bg-[#fff4d5] px-3 py-1.5 text-xs font-semibold text-[#7a2f14] transition hover:bg-[#ffe9bd]"
+            >
+              <Download className="size-3.5" />
+              Download QR
+            </a>
           </div>
         </div>
 
@@ -131,6 +181,21 @@ export function LoggedInCardHero({
             </Badge>
           )}
         </div>
+      </div>
+
+      <div className="flex gap-3">
+        <Link href="/order" className={`${actionButtonBase} ${actionButtonSoft}`}>
+          <Utensils className="size-4" />
+          View Menu
+        </Link>
+        <button
+          type="button"
+          onClick={onLogout}
+          className={`${actionButtonBase} ${actionButtonSolid}`}
+        >
+          <LogOut className="size-4" />
+          Logout
+        </button>
       </div>
 
       <div className="grid gap-3 rounded-xl border bg-card p-4">
@@ -165,14 +230,6 @@ export function LoggedInCardHero({
           </div>
         )}
       </div>
-
-      <button
-        type="button"
-        onClick={onLogout}
-        className="h-10 justify-self-start rounded-lg border px-4 text-sm font-medium text-muted-foreground transition hover:bg-muted"
-      >
-        Log out
-      </button>
     </div>
   );
 }
