@@ -2,12 +2,14 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import jsQR from "jsqr";
-import { Camera, CheckCircle2, Loader2, ScanLine, Upload, X } from "lucide-react";
+import { Camera, CheckCircle2, Gift, Loader2, ScanLine, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   awardLoyaltyStamps,
   findCustomerByLoyaltyCode,
+  redeemLoyaltyReward,
   type AwardLoyaltyState,
+  type LoyaltyFormState,
 } from "@/app/(app)/loyalty/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +17,60 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ResolvedCustomer = { id: string; displayName: string; loyaltyPoints: number };
+type ResolvedCustomer = {
+  id: string;
+  displayName: string;
+  loyaltyPoints: number;
+  redeemableRewards: { stamps: number; name: string }[];
+};
+
+const initialRedeemState: LoyaltyFormState = {};
+
+function ClaimRewardSection({
+  customer,
+  onClaimed,
+}: {
+  customer: ResolvedCustomer;
+  onClaimed: () => void;
+}) {
+  const [state, formAction, isPending] = useActionState(redeemLoyaltyReward, initialRedeemState);
+  const wasPending = useRef(false);
+
+  useEffect(() => {
+    if (wasPending.current && !isPending) {
+      if (state.error) toast.error(state.error);
+      if (state.success) {
+        toast.success(state.success);
+        onClaimed();
+      }
+    }
+    wasPending.current = isPending;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPending, state.error, state.success]);
+
+  if (customer.redeemableRewards.length === 0) return null;
+
+  return (
+    <div className="grid gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3">
+      <p className="flex items-center gap-1.5 text-sm font-semibold">
+        <Gift className="size-4 text-primary" />
+        Reward ready to claim
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {customer.redeemableRewards.map((reward) => (
+          <form key={reward.stamps} action={formAction}>
+            <input type="hidden" name="customerId" value={customer.id} />
+            <input type="hidden" name="rewardStamps" value={reward.stamps} />
+            <Button type="submit" variant="outline" className="w-full justify-start" disabled={isPending}>
+              {isPending ? <Loader2 className="size-4 animate-spin" /> : <Gift className="size-4" />}
+              {reward.name}
+            </Button>
+          </form>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const initialAwardState: AwardLoyaltyState = {};
 
@@ -62,9 +117,7 @@ function ConfirmAndAward({
   }
 
   return (
-    <form action={formAction} className="grid gap-3 rounded-lg border p-4">
-      <input type="hidden" name="loyaltyCode" value={loyaltyCode} />
-      <input type="hidden" name="source" value={source} />
+    <div className="grid gap-3 rounded-lg border p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="font-semibold">{customer.displayName}</p>
@@ -76,20 +129,27 @@ function ConfirmAndAward({
           <X className="size-4" />
         </Button>
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="award-amount">Order amount (₱)</Label>
-        <Input id="award-amount" name="amount" type="number" step="0.01" min="0.01" required autoFocus />
-      </div>
-      {state.error ? (
-        <p className="text-sm font-medium text-destructive" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      <Button type="submit" disabled={isPending}>
-        {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-        Award stamps
-      </Button>
-    </form>
+
+      <ClaimRewardSection customer={customer} onClaimed={onReset} />
+
+      <form action={formAction} className="grid gap-3">
+        <input type="hidden" name="loyaltyCode" value={loyaltyCode} />
+        <input type="hidden" name="source" value={source} />
+        <div className="grid gap-2">
+          <Label htmlFor="award-amount">Order amount (₱)</Label>
+          <Input id="award-amount" name="amount" type="number" step="0.01" min="0.01" required autoFocus />
+        </div>
+        {state.error ? (
+          <p className="text-sm font-medium text-destructive" role="alert">
+            {state.error}
+          </p>
+        ) : null}
+        <Button type="submit" disabled={isPending}>
+          {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+          Award stamps
+        </Button>
+      </form>
+    </div>
   );
 }
 

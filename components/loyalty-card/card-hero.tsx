@@ -3,43 +3,82 @@
 import Image from "next/image";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { Download, Gift, History, LogIn, LogOut, UserPlus, Utensils } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  Gift,
+  History,
+  LogIn,
+  LogOut,
+  QrCode,
+  RotateCw,
+  UserPlus,
+  Utensils,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { CustomerLoyaltyCard } from "@/app/customer-loyalty-actions";
 import { formatDate } from "@/lib/format";
+import { FlippableCard } from "@/components/loyalty-card/flippable-card";
 
 const actionButtonBase =
   "flex h-12 flex-1 items-center justify-center gap-2 rounded-full text-sm font-semibold shadow-sm transition active:scale-[0.98]";
 const actionButtonSolid = "bg-[#c45a23] text-white hover:bg-[#a94618]";
 const actionButtonSoft = "bg-[#fff4d5] text-[#7a2f14] hover:bg-[#ffe9bd]";
 
-function StampRow({ points, rewardTiers }: { points: number; rewardTiers: { stamps: number; name: string }[] }) {
+/**
+ * Stamps grid for the "back" of the card. A slot's gift icon communicates
+ * three states: not yet reached (dim), currently claimable — points already
+ * cover it (bright + pulsing), or claimed — lifetimePoints crossed this
+ * threshold before but the current balance no longer covers it, which only
+ * happens after a redemption (muted checkmark). There's no separate
+ * "claimed" flag in the schema, so this is inferred from the two point
+ * totals we do have.
+ */
+function StampGrid({
+  points,
+  lifetimePoints,
+  rewardTiers,
+}: {
+  points: number;
+  lifetimePoints: number;
+  rewardTiers: { stamps: number; name: string }[];
+}) {
   const maxStamps = rewardTiers.length > 0 ? Math.max(...rewardTiers.map((r) => r.stamps)) : 10;
   const rewardAtStamp = new Set(rewardTiers.map((r) => r.stamps));
 
   return (
-    <div className="grid grid-cols-5 gap-2 sm:grid-cols-10 sm:gap-3">
+    <div className="grid grid-cols-5 gap-3 sm:gap-4">
       {Array.from({ length: maxStamps }).map((_, index) => {
         const stampNumber = index + 1;
         const isEarned = points >= stampNumber;
         const isRewardSlot = rewardAtStamp.has(stampNumber);
+        const isClaimable = isRewardSlot && points >= stampNumber;
+        const isClaimed = isRewardSlot && !isClaimable && lifetimePoints >= stampNumber;
 
         return (
           <div
             key={stampNumber}
-            className="grid aspect-square place-items-center rounded-2xl bg-[#fff4d5]"
+            className={`grid aspect-square place-items-center rounded-2xl bg-[#fff4d5] ${
+              isClaimable ? "ring-4 ring-[#ffd680]" : ""
+            }`}
           >
             {isRewardSlot ? (
-              <Gift
-                className={`size-6 sm:size-9 ${isEarned ? "text-[#c45a23]" : "text-[#e89362]"}`}
-              />
+              isClaimed ? (
+                <CheckCircle2 className="size-8 text-emerald-600/70 sm:size-11" />
+              ) : (
+                <Gift
+                  className={`size-8 sm:size-11 ${
+                    isClaimable ? "kp-gift-claimable text-[#c45a23]" : "text-[#e89362]"
+                  }`}
+                />
+              )
             ) : isEarned ? (
               <Image
                 src="/kanto-logo.png"
                 alt=""
-                width={60}
-                height={60}
-                className="size-6 object-contain sm:size-9"
+                width={72}
+                height={72}
+                className="size-8 object-contain sm:size-11"
               />
             ) : null}
           </div>
@@ -51,18 +90,21 @@ function StampRow({ points, rewardTiers }: { points: number; rewardTiers: { stam
 
 function CardHeaderRow() {
   return (
-    <div className="flex items-center gap-3">
-      <Image
-        src="/kanto-logo.png"
-        alt="Kanto't Pakpakan"
-        width={56}
-        height={56}
-        className="size-11 rounded-full bg-white object-contain p-1 shadow-sm sm:size-12"
-        priority
-      />
-      <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
-        eLoyalty Card
-      </p>
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <Image
+          src="/kanto-logo.png"
+          alt="Kanto't Pakpakan"
+          width={56}
+          height={56}
+          className="size-11 rounded-full bg-white object-contain p-1 shadow-sm sm:size-12"
+          priority
+        />
+        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
+          eLoyalty Card
+        </p>
+      </div>
+      <RotateCw className="size-4 shrink-0 text-[#fff4d5]/60" aria-hidden="true" />
     </div>
   );
 }
@@ -184,6 +226,15 @@ async function downloadLoyaltyCardImage(loyaltyCode: string, displayName: string
   link.remove();
 }
 
+function FlipHint({ label }: { label: string }) {
+  return (
+    <p className="mt-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#fff4d5]/70">
+      <RotateCw className="size-3.5" />
+      {label}
+    </p>
+  );
+}
+
 export function LoggedOutCardHero({
   onRegister,
   onLogin,
@@ -191,25 +242,53 @@ export function LoggedOutCardHero({
   onRegister: () => void;
   onLogin: () => void;
 }) {
-  return (
-    <div className="grid gap-6">
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10">
-        <CardHeaderRow />
-        <p className="mt-6 text-4xl font-black tracking-wide text-white sm:text-5xl">KP CARD</p>
-        <div className="mt-8">
-          <p className="text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
-          <p
-            className="mt-2 border-b-4 border-[#fff4d5]/60 pb-2 text-5xl italic text-white/40 sm:text-6xl"
-            style={{ fontFamily: "var(--font-handwritten)" }}
-          >
-            Your name here
-          </p>
-        </div>
-        <p className="mt-8 max-w-xl text-base leading-relaxed text-[#fff4d5]/90 sm:text-lg">
-          Register to start collecting stamps every time you order — every ₱200 spent earns a
-          stamp toward free drinks and free meals.
+  const cardFace = "grid h-full content-start gap-1 rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10";
+
+  const front = (
+    <div className={cardFace}>
+      <CardHeaderRow />
+      <p className="mt-6 text-center text-4xl font-black tracking-wide text-white sm:text-5xl">
+        KP CARD
+      </p>
+      <div className="mt-6 grid justify-items-center text-center">
+        <p className="text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
+        <p
+          className="mt-2 border-b-4 border-[#fff4d5]/60 pb-2 text-5xl italic text-white/40 sm:text-6xl"
+          style={{ fontFamily: "var(--font-handwritten)" }}
+        >
+          Your name here
         </p>
       </div>
+      <div className="mt-6 grid w-52 place-items-center gap-2 justify-self-center rounded-2xl border-2 border-dashed border-white/30 bg-white/10 p-5">
+        <QrCode className="size-28 text-white/50" />
+        <p className="text-center text-xs font-semibold text-[#fff4d5]/80">
+          Sign up to get your QR code
+        </p>
+      </div>
+      <FlipHint label="Tap or swipe to see the stamp card" />
+    </div>
+  );
+
+  const back = (
+    <div className={cardFace}>
+      <CardHeaderRow />
+      <p className="mt-6 text-center text-3xl font-black tracking-wide text-white sm:text-4xl">
+        Your Stamps
+      </p>
+      <div className="mt-6">
+        <StampGrid points={0} lifetimePoints={0} rewardTiers={[]} />
+      </div>
+      <p className="mt-6 text-center text-sm leading-relaxed text-[#fff4d5]/90 sm:text-base">
+        Register to start collecting stamps every time you order — every ₱200 spent earns a
+        stamp toward free drinks and free meals.
+      </p>
+      <FlipHint label="Tap or swipe to see your QR code" />
+    </div>
+  );
+
+  return (
+    <div className="grid gap-6">
+      <FlippableCard front={front} back={back} minHeightClassName="min-h-[600px] sm:min-h-[850px]" />
       <div className="flex gap-3">
         <button
           type="button"
@@ -242,60 +321,76 @@ export function LoggedInCardHero({
   onLogout: () => void;
 }) {
   const points = card.loyaltyPoints;
+  const cardFace = "grid h-full content-start gap-1 rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10";
+
+  const front = (
+    <div className={cardFace}>
+      <CardHeaderRow />
+      <p className="mt-6 text-center text-4xl font-black tracking-wide text-white sm:text-5xl">
+        KP CARD
+      </p>
+      <div className="mt-6 grid justify-items-center text-center">
+        <p className="text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
+        <p
+          className="mt-2 border-b-4 border-[#fff4d5]/60 pb-2 text-5xl italic text-white sm:text-6xl"
+          style={{ fontFamily: "var(--font-handwritten)" }}
+        >
+          {card.displayName}
+        </p>
+      </div>
+      <div className="mt-6 grid w-52 place-items-center gap-2 justify-self-center rounded-2xl bg-white p-5">
+        {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, generated server-side, not eligible for next/image optimization */}
+        <img src={qrDataUrl} alt="Your loyalty QR code" width={200} height={200} />
+        <p className="text-xs font-semibold text-[#7a2f14]">Show this at checkout</p>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            downloadLoyaltyCardImage(card.loyaltyCode, card.displayName, card.email);
+          }}
+          className="flex items-center gap-1.5 rounded-full bg-[#fff4d5] px-3 py-1.5 text-xs font-semibold text-[#7a2f14] transition hover:bg-[#ffe9bd]"
+        >
+          <Download className="size-3.5" />
+          Download QR
+        </button>
+      </div>
+      <FlipHint label="Tap or swipe to see your stamps" />
+    </div>
+  );
+
+  const back = (
+    <div className={cardFace}>
+      <CardHeaderRow />
+      <p className="mt-6 text-center text-3xl font-black tracking-wide text-white sm:text-4xl">
+        Your Stamps
+      </p>
+      <div className="mt-6">
+        <StampGrid points={points} lifetimePoints={card.lifetimePoints} rewardTiers={card.rewardTiers} />
+      </div>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm font-bold sm:text-base">
+        <Badge className="bg-[#7a2f14] text-white hover:bg-[#7a2f14]">
+          {points} current stamp{points === 1 ? "" : "s"}
+        </Badge>
+        <Badge className="bg-[#fff4d5] text-[#7a2f14] hover:bg-[#fff4d5]">
+          {card.lifetimePoints} lifetime
+        </Badge>
+        {card.nextRewardStamps ? (
+          <Badge className="bg-[#fff4d5] text-[#7a2f14] hover:bg-[#fff4d5]">
+            Next reward at {card.nextRewardStamps}
+          </Badge>
+        ) : (
+          <Badge className="bg-[#fff4d5] text-[#7a2f14] hover:bg-[#fff4d5]">
+            Reward available
+          </Badge>
+        )}
+      </div>
+      <FlipHint label="Tap or swipe to see your QR code" />
+    </div>
+  );
 
   return (
     <div className="grid gap-4">
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10">
-        <CardHeaderRow />
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
-          <div>
-            <p className="text-4xl font-black tracking-wide text-white sm:text-5xl">KP CARD</p>
-            <p className="mt-6 text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
-            <p
-              className="mt-2 border-b-4 border-[#fff4d5]/60 pb-2 text-5xl italic text-white sm:text-6xl"
-              style={{ fontFamily: "var(--font-handwritten)" }}
-            >
-              {card.displayName}
-            </p>
-          </div>
-          <div className="grid place-items-center gap-2 justify-self-center rounded-2xl bg-white p-4 lg:justify-self-end">
-            {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, generated server-side, not eligible for next/image optimization */}
-            <img src={qrDataUrl} alt="Your loyalty QR code" width={160} height={160} />
-            <p className="text-xs font-semibold text-[#7a2f14]">Show this at checkout</p>
-            <button
-              type="button"
-              onClick={() => downloadLoyaltyCardImage(card.loyaltyCode, card.displayName, card.email)}
-              className="flex items-center gap-1.5 rounded-full bg-[#fff4d5] px-3 py-1.5 text-xs font-semibold text-[#7a2f14] transition hover:bg-[#ffe9bd]"
-            >
-              <Download className="size-3.5" />
-              Download QR
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-4">
-          <StampRow points={points} rewardTiers={card.rewardTiers} />
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-3 text-sm font-bold sm:text-base">
-          <Badge className="bg-[#7a2f14] text-white hover:bg-[#7a2f14]">
-            {points} current stamp{points === 1 ? "" : "s"}
-          </Badge>
-          <Badge className="bg-[#fff4d5] text-[#7a2f14] hover:bg-[#fff4d5]">
-            {card.lifetimePoints} lifetime
-          </Badge>
-          {card.nextRewardStamps ? (
-            <Badge className="bg-[#fff4d5] text-[#7a2f14] hover:bg-[#fff4d5]">
-              Next reward at {card.nextRewardStamps}
-            </Badge>
-          ) : (
-            <Badge className="bg-[#fff4d5] text-[#7a2f14] hover:bg-[#fff4d5]">
-              Reward available
-            </Badge>
-          )}
-        </div>
-      </div>
+      <FlippableCard front={front} back={back} minHeightClassName="min-h-[720px] sm:min-h-[850px]" />
 
       <div className="flex gap-3">
         <Link href="/order" className={`${actionButtonBase} ${actionButtonSoft}`}>

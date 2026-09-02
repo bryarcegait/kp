@@ -128,7 +128,9 @@ export async function redeemLoyaltyReward(
   _prevState: LoyaltyFormState,
   formData: FormData
 ): Promise<LoyaltyFormState> {
-  const guard = await requireLoyaltyManager();
+  // Broader than manage-only: front-line staff need to process a
+  // customer's earned reward at checkout, not just System Admin/Manager.
+  const guard = await requireLoyaltyAwarder();
   if ("error" in guard) return { error: guard.error };
 
   const parsed = redeemSchema.safeParse({
@@ -285,12 +287,18 @@ export async function findCustomerByLoyaltyCode(loyaltyCode: string) {
   const guard = await requireLoyaltyAwarder();
   if ("error" in guard) return { error: guard.error } as const;
 
-  const customer = await db.customer.findUnique({
-    where: { loyaltyCode },
-    select: { id: true, displayName: true, loyaltyPoints: true },
-  });
+  const [customer, rewards] = await Promise.all([
+    db.customer.findUnique({
+      where: { loyaltyCode },
+      select: { id: true, displayName: true, loyaltyPoints: true },
+    }),
+    getLoyaltyRewards(),
+  ]);
   if (!customer) return { error: "No account found for that QR code." } as const;
-  return { customer } as const;
+
+  const redeemableRewards = rewards.filter((reward) => customer.loyaltyPoints >= reward.stamps);
+
+  return { customer: { ...customer, redeemableRewards } } as const;
 }
 
 export async function upsertLoyaltyReward(

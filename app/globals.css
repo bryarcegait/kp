@@ -330,6 +330,40 @@
     animation-fill-mode: forwards;
     will-change: transform, opacity;
   }
+
+  .kp-flip-card-perspective {
+    perspective: 1600px;
+    cursor: pointer;
+    touch-action: pan-y;
+  }
+
+  .kp-flip-card-inner {
+    position: relative;
+    width: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0.15, 0.2, 1);
+  }
+
+  .kp-flip-card-flipped {
+    transform: rotateY(180deg);
+  }
+
+  .kp-flip-card-face {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .kp-flip-card-back {
+    transform: rotateY(180deg);
+  }
+
+  .kp-gift-claimable {
+    animation: kp-gift-pulse 1.6s ease-in-out infinite;
+  }
 }
 
 @keyframes kp-steam-rise {
@@ -453,6 +487,18 @@
   }
 }
 
+@keyframes kp-gift-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(255, 214, 128, 0));
+  }
+  50% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 10px rgba(255, 214, 128, 0.85));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .kp-kitchen-loader__steam,
   .kp-kitchen-loader__wing,
@@ -462,7 +508,12 @@
   .kp-user-calendar-toast,
   .kp-card-flip-out,
   .kp-card-flip-in,
-  .kp-confetti-piece {
+  .kp-confetti-piece,
+  .kp-gift-claimable {
     animation: none;
+  }
+
+  .kp-flip-card-inner {
+    transition: none;
   }
 }
