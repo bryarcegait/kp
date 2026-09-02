@@ -272,10 +272,7 @@ export function LoggedOutCardHero({
   const back = (
     <div className={cardFace}>
       <CardHeaderRow />
-      <p className="mt-6 text-center text-3xl font-black tracking-wide text-white sm:text-4xl">
-        Your Stamps
-      </p>
-      <div className="mt-6">
+      <div className="mt-8">
         <StampGrid points={0} lifetimePoints={0} rewardTiers={[]} />
       </div>
       <p className="mt-6 text-center text-sm leading-relaxed text-[#fff4d5]/90 sm:text-base">
@@ -288,7 +285,7 @@ export function LoggedOutCardHero({
 
   return (
     <div className="grid gap-6">
-      <FlippableCard front={front} back={back} minHeightClassName="min-h-[600px] sm:min-h-[850px]" />
+      <FlippableCard front={front} back={back} />
       <div className="flex gap-3">
         <button
           type="button"
@@ -361,10 +358,7 @@ export function LoggedInCardHero({
   const back = (
     <div className={cardFace}>
       <CardHeaderRow />
-      <p className="mt-6 text-center text-3xl font-black tracking-wide text-white sm:text-4xl">
-        Your Stamps
-      </p>
-      <div className="mt-6">
+      <div className="mt-8">
         <StampGrid points={points} lifetimePoints={card.lifetimePoints} rewardTiers={card.rewardTiers} />
       </div>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm font-bold sm:text-base">
@@ -390,7 +384,7 @@ export function LoggedInCardHero({
 
   return (
     <div className="grid gap-4">
-      <FlippableCard front={front} back={back} minHeightClassName="min-h-[720px] sm:min-h-[850px]" />
+      <FlippableCard front={front} back={back} />
 
       <div className="flex gap-3">
         <Link href="/order" className={`${actionButtonBase} ${actionButtonSoft}`}>
