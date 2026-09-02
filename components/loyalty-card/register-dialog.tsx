@@ -7,6 +7,7 @@ import { signupCustomerLoyalty } from "@/app/customer-loyalty-actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 export function RegisterDialog({
@@ -80,10 +81,9 @@ export function RegisterDialog({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="register-password">Password</Label>
-              <Input
+              <PasswordInput
                 id="register-password"
                 name="password"
-                type="password"
                 minLength={6}
                 required
                 autoComplete="new-password"
@@ -91,10 +91,9 @@ export function RegisterDialog({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="register-confirm">Confirm password</Label>
-              <Input
+              <PasswordInput
                 id="register-confirm"
                 name="confirmPassword"
-                type="password"
                 minLength={6}
                 required
                 autoComplete="new-password"

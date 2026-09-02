@@ -8,6 +8,7 @@ import { loginCustomerLoyalty } from "@/app/customer-loyalty-actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 export function LoginDialog({
@@ -63,10 +64,9 @@ export function LoginDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="login-password">Password</Label>
-            <Input
+            <PasswordInput
               id="login-password"
               name="password"
-              type="password"
               required
               autoComplete="current-password"
             />
