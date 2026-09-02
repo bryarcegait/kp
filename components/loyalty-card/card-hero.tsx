@@ -47,7 +47,7 @@ function StampGrid({
   const rewardAtStamp = new Set(rewardTiers.map((r) => r.stamps));
 
   return (
-    <div className="grid grid-cols-5 gap-3 sm:gap-4">
+    <div className="grid grid-cols-5 gap-2 sm:gap-3">
       {Array.from({ length: maxStamps }).map((_, index) => {
         const stampNumber = index + 1;
         const isEarned = points >= stampNumber;
@@ -58,16 +58,16 @@ function StampGrid({
         return (
           <div
             key={stampNumber}
-            className={`grid aspect-square place-items-center rounded-2xl bg-[#fff4d5] ${
+            className={`grid aspect-square place-items-center rounded-xl bg-[#fff4d5] ${
               isClaimable ? "ring-4 ring-[#ffd680]" : ""
             }`}
           >
             {isRewardSlot ? (
               isClaimed ? (
-                <CheckCircle2 className="size-8 text-emerald-600/70 sm:size-11" />
+                <CheckCircle2 className="size-6 text-emerald-600/70 sm:size-9" />
               ) : (
                 <Gift
-                  className={`size-8 sm:size-11 ${
+                  className={`size-6 sm:size-9 ${
                     isClaimable ? "kp-gift-claimable text-[#c45a23]" : "text-[#e89362]"
                   }`}
                 />
@@ -78,7 +78,7 @@ function StampGrid({
                 alt=""
                 width={72}
                 height={72}
-                className="size-8 object-contain sm:size-11"
+                className="size-6 object-contain sm:size-9"
               />
             ) : null}
           </div>
@@ -97,11 +97,11 @@ function CardHeaderRow() {
           alt="Kanto't Pakpakan"
           width={56}
           height={56}
-          className="size-11 rounded-full bg-white object-contain p-1 shadow-sm sm:size-12"
+          className="size-9 rounded-full bg-white object-contain p-1 shadow-sm sm:size-10"
           priority
         />
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#fff4d5]/80">
-          eLoyalty Card
+          <span className="lowercase">e</span>Loyalty Card
         </p>
       </div>
       <RotateCw className="size-4 shrink-0 text-[#fff4d5]/60" aria-hidden="true" />
@@ -228,7 +228,7 @@ async function downloadLoyaltyCardImage(loyaltyCode: string, displayName: string
 
 function FlipHint({ label }: { label: string }) {
   return (
-    <p className="mt-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#fff4d5]/70">
+    <p className="mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#fff4d5]/70">
       <RotateCw className="size-3.5" />
       {label}
     </p>
@@ -242,25 +242,25 @@ export function LoggedOutCardHero({
   onRegister: () => void;
   onLogin: () => void;
 }) {
-  const cardFace = "grid h-full content-start gap-1 rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10";
+  const cardFace = "grid h-full content-start gap-1 rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-5 text-[#fff4d5] shadow-lg sm:p-7";
 
   const front = (
     <div className={cardFace}>
       <CardHeaderRow />
-      <p className="mt-6 text-center text-4xl font-black tracking-wide text-white sm:text-5xl">
+      <p className="mt-3 text-center text-3xl font-black tracking-wide text-white sm:text-4xl">
         KP CARD
       </p>
-      <div className="mt-6 grid justify-items-center text-center">
-        <p className="text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
+      <div className="mt-3 grid justify-items-center text-center">
+        <p className="text-base text-[#fff4d5]/90 sm:text-lg">This card belongs to:</p>
         <p
-          className="mt-2 border-b-4 border-[#fff4d5]/60 pb-2 text-5xl italic text-white/40 sm:text-6xl"
+          className="mt-1 border-b-4 border-[#fff4d5]/60 pb-1 text-4xl italic text-white/40 sm:text-5xl"
           style={{ fontFamily: "var(--font-handwritten)" }}
         >
           Your name here
         </p>
       </div>
-      <div className="mt-6 grid w-52 place-items-center gap-2 justify-self-center rounded-2xl border-2 border-dashed border-white/30 bg-white/10 p-5">
-        <QrCode className="size-28 text-white/50" />
+      <div className="mt-3 grid w-40 place-items-center gap-1 justify-self-center rounded-2xl border-2 border-dashed border-white/30 bg-white/10 p-3">
+        <QrCode className="size-16 text-white/50" />
         <p className="text-center text-xs font-semibold text-[#fff4d5]/80">
           Sign up to get your QR code
         </p>
@@ -272,10 +272,10 @@ export function LoggedOutCardHero({
   const back = (
     <div className={cardFace}>
       <CardHeaderRow />
-      <div className="mt-8">
+      <div className="mt-5">
         <StampGrid points={0} lifetimePoints={0} rewardTiers={[]} />
       </div>
-      <p className="mt-6 text-center text-sm leading-relaxed text-[#fff4d5]/90 sm:text-base">
+      <p className="mt-3 text-center text-sm leading-relaxed text-[#fff4d5]/90 sm:text-base">
         Register to start collecting stamps every time you order — every ₱200 spent earns a
         stamp toward free drinks and free meals.
       </p>
@@ -318,26 +318,26 @@ export function LoggedInCardHero({
   onLogout: () => void;
 }) {
   const points = card.loyaltyPoints;
-  const cardFace = "grid h-full content-start gap-1 rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-6 text-[#fff4d5] shadow-lg sm:p-10";
+  const cardFace = "grid h-full content-start gap-1 rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-5 text-[#fff4d5] shadow-lg sm:p-7";
 
   const front = (
     <div className={cardFace}>
       <CardHeaderRow />
-      <p className="mt-6 text-center text-4xl font-black tracking-wide text-white sm:text-5xl">
+      <p className="mt-3 text-center text-3xl font-black tracking-wide text-white sm:text-4xl">
         KP CARD
       </p>
-      <div className="mt-6 grid justify-items-center text-center">
-        <p className="text-lg text-[#fff4d5]/90 sm:text-xl">This card belongs to:</p>
+      <div className="mt-3 grid justify-items-center text-center">
+        <p className="text-base text-[#fff4d5]/90 sm:text-lg">This card belongs to:</p>
         <p
-          className="mt-2 border-b-4 border-[#fff4d5]/60 pb-2 text-5xl italic text-white sm:text-6xl"
+          className="mt-1 border-b-4 border-[#fff4d5]/60 pb-1 text-4xl italic text-white sm:text-5xl"
           style={{ fontFamily: "var(--font-handwritten)" }}
         >
           {card.displayName}
         </p>
       </div>
-      <div className="mt-6 grid w-52 place-items-center gap-2 justify-self-center rounded-2xl bg-white p-5">
+      <div className="mt-3 grid w-40 place-items-center gap-1 justify-self-center rounded-2xl bg-white p-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, generated server-side, not eligible for next/image optimization */}
-        <img src={qrDataUrl} alt="Your loyalty QR code" width={200} height={200} />
+        <img src={qrDataUrl} alt="Your loyalty QR code" width={144} height={144} />
         <p className="text-xs font-semibold text-[#7a2f14]">Show this at checkout</p>
         <button
           type="button"
@@ -358,10 +358,10 @@ export function LoggedInCardHero({
   const back = (
     <div className={cardFace}>
       <CardHeaderRow />
-      <div className="mt-8">
+      <div className="mt-5">
         <StampGrid points={points} lifetimePoints={card.lifetimePoints} rewardTiers={card.rewardTiers} />
       </div>
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm font-bold sm:text-base">
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm font-bold sm:text-base">
         <Badge className="bg-[#7a2f14] text-white hover:bg-[#7a2f14]">
           {points} current stamp{points === 1 ? "" : "s"}
         </Badge>
