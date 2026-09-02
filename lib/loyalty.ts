@@ -1,9 +1,9 @@
-export const LOYALTY_SPEND_PER_STAMP = 200;
+import { db } from "@/lib/db";
 
-export const LOYALTY_REWARDS = [
-  { stamps: 5, name: "5-stamp free reward" },
-  { stamps: 10, name: "10-stamp free reward" },
-] as const;
+export type LoyaltyRewardTier = {
+  stamps: number;
+  name: string;
+};
 
 export function normalizePhoneNumber(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -20,10 +20,41 @@ export function isValidLoyaltyPhoneNumber(value: string) {
   return normalized.length >= 10 && normalized.length <= 13;
 }
 
-export function getNextLoyaltyReward(points: number) {
-  return LOYALTY_REWARDS.find((reward) => points < reward.stamps) ?? null;
+export async function getLoyaltyRewards(): Promise<LoyaltyRewardTier[]> {
+  const rewards = await db.loyaltyReward.findMany({
+    where: { isActive: true },
+    orderBy: { stampsRequired: "asc" },
+  });
+
+  return rewards.map((reward) => ({ stamps: reward.stampsRequired, name: reward.rewardName }));
 }
 
-export function getRedeemableRewards(points: number) {
-  return LOYALTY_REWARDS.filter((reward) => points >= reward.stamps);
+export async function getLoyaltySpendPerStamp(): Promise<number> {
+  const settings = await db.loyaltySettings.findUnique({ where: { id: "default" } });
+  return Number(settings?.spendPerStamp ?? 200);
+}
+
+export function getNextLoyaltyReward(points: number, rewards: LoyaltyRewardTier[]) {
+  return rewards.find((reward) => points < reward.stamps) ?? null;
+}
+
+export function getRedeemableRewards(points: number, rewards: LoyaltyRewardTier[]) {
+  return rewards.filter((reward) => points >= reward.stamps);
+}
+
+/**
+ * Converts a spend amount into stamps at `spendPerStamp` pesos each, carrying
+ * any remainder forward so partial amounts accumulate across visits instead
+ * of being lost (e.g. ₱250 at ₱200/stamp = 1 stamp + ₱50 carried over).
+ */
+export function applySpend(
+  pendingAmount: number,
+  spendAmount: number,
+  spendPerStamp: number
+): { stampsEarned: number; newPendingAmount: number } {
+  const total = Math.round((pendingAmount + spendAmount) * 100) / 100;
+  const stampsEarned = Math.floor(total / spendPerStamp);
+  const newPendingAmount = Math.round((total - stampsEarned * spendPerStamp) * 100) / 100;
+
+  return { stampsEarned, newPendingAmount };
 }

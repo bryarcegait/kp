@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { canManageLoyalty } from "@/lib/loyalty-access";
-import { normalizePhoneNumber } from "@/lib/loyalty";
+import { canManageLoyalty, canAwardLoyalty } from "@/lib/loyalty-access";
+import { normalizePhoneNumber, getLoyaltyRewards, getLoyaltySpendPerStamp } from "@/lib/loyalty";
 import {
   LoyaltyClient,
   type LoyaltyCustomerRow,
@@ -16,7 +16,9 @@ export default async function LoyaltyPage({
 }) {
   const session = await auth();
   if (!session) redirect("/login");
-  if (!canManageLoyalty(session.user)) redirect("/dashboard");
+  const canManage = canManageLoyalty(session.user);
+  const canAward = canAwardLoyalty(session.user);
+  if (!canAward) redirect("/dashboard");
 
   const params = await searchParams;
   const query = Array.isArray(params?.q) ? params.q[0] : params?.q ?? "";
@@ -27,6 +29,7 @@ export default async function LoyaltyPage({
       ? {
           OR: [
             { displayName: { contains: trimmedQuery } },
+            { email: { contains: trimmedQuery } },
             ...(normalizedPhoneQuery
               ? [{ phoneNumber: { contains: normalizedPhoneQuery } }]
               : []),
@@ -34,27 +37,34 @@ export default async function LoyaltyPage({
         }
       : {};
 
-  const [customers, transactions] = await Promise.all([
-    db.customer.findMany({
-      where,
-      include: { _count: { select: { orders: true } } },
-      orderBy: [{ loyaltyPoints: "desc" }, { updatedAt: "desc" }],
-      take: 100,
-    }),
-    db.loyaltyTransaction.findMany({
-      include: {
-        customer: { select: { displayName: true, phoneNumber: true } },
-        order: { select: { orderNumber: true } },
-        createdBy: { select: { fullName: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 80,
-    }),
+  const [customers, transactions, rewardTiers, spendPerStamp] = await Promise.all([
+    canManage
+      ? db.customer.findMany({
+          where,
+          include: { _count: { select: { orders: true } } },
+          orderBy: [{ loyaltyPoints: "desc" }, { updatedAt: "desc" }],
+          take: 100,
+        })
+      : Promise.resolve([]),
+    canManage
+      ? db.loyaltyTransaction.findMany({
+          include: {
+            customer: { select: { displayName: true, email: true } },
+            order: { select: { orderNumber: true } },
+            createdBy: { select: { fullName: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 80,
+        })
+      : Promise.resolve([]),
+    getLoyaltyRewards(),
+    getLoyaltySpendPerStamp(),
   ]);
 
   const customerRows: LoyaltyCustomerRow[] = customers.map((customer) => ({
     id: customer.id,
     displayName: customer.displayName,
+    email: customer.email,
     phoneNumber: customer.phoneNumber,
     loyaltyPoints: customer.loyaltyPoints,
     lifetimePoints: customer.lifetimePoints,
@@ -67,7 +77,7 @@ export default async function LoyaltyPage({
   const transactionRows: LoyaltyTransactionRow[] = transactions.map((transaction) => ({
     id: transaction.id,
     customerName: transaction.customer.displayName,
-    phoneNumber: transaction.customer.phoneNumber,
+    email: transaction.customer.email,
     orderNumber: transaction.order?.orderNumber ?? null,
     type: transaction.type,
     points: transaction.points,
@@ -83,13 +93,16 @@ export default async function LoyaltyPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Loyalty Cards</h1>
         <p className="text-muted-foreground">
-          Manage customer stamps by cellphone number and redeem free rewards.
+          Scan customer QR codes to award stamps, manage accounts, and redeem free rewards.
         </p>
       </div>
       <LoyaltyClient
         customers={customerRows}
         transactions={transactionRows}
         query={trimmedQuery}
+        rewardTiers={rewardTiers}
+        spendPerStamp={spendPerStamp}
+        canManage={canManage}
       />
     </div>
   );

@@ -52,6 +52,24 @@ async function main() {
     },
   });
 
+  await db.loyaltySettings.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default", spendPerStamp: 200 },
+  });
+
+  const defaultRewards = [
+    { stampsRequired: 5, rewardName: "Free drink (any available)", sortOrder: 5 },
+    { stampsRequired: 10, rewardName: "Free 4pcs Wings Meal", sortOrder: 10 },
+  ];
+  for (const reward of defaultRewards) {
+    await db.loyaltyReward.upsert({
+      where: { stampsRequired: reward.stampsRequired },
+      update: {},
+      create: reward,
+    });
+  }
+
   for (const product of DEFAULT_MENU_PRODUCTS) {
     await db.menuProduct.upsert({
       where: { id: product.id },

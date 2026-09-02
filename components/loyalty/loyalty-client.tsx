@@ -2,21 +2,21 @@
 
 import Image from "next/image";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
-import { Gift, MinusCircle, PlusCircle, Search } from "lucide-react";
+import { Gift, MinusCircle, PlusCircle, ScanLine, Search, Settings, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   adjustLoyaltyPoints,
   redeemLoyaltyReward,
   type LoyaltyFormState,
 } from "@/app/(app)/loyalty/actions";
-import { LOYALTY_REWARDS, LOYALTY_SPEND_PER_STAMP } from "@/lib/loyalty";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -25,11 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ScanAwardPanel } from "@/components/loyalty/scan-award-panel";
+import { ProgramSettingsPanel } from "@/components/loyalty/program-settings-panel";
 
 export type LoyaltyCustomerRow = {
   id: string;
   displayName: string;
-  phoneNumber: string;
+  email: string;
+  phoneNumber: string | null;
   loyaltyPoints: number;
   lifetimePoints: number;
   redeemedPoints: number;
@@ -41,7 +44,7 @@ export type LoyaltyCustomerRow = {
 export type LoyaltyTransactionRow = {
   id: string;
   customerName: string;
-  phoneNumber: string;
+  email: string;
   orderNumber: string | null;
   type: string;
   points: number;
@@ -51,6 +54,8 @@ export type LoyaltyTransactionRow = {
   createdByName: string | null;
   createdAt: string;
 };
+
+type RewardTier = { stamps: number; name: string };
 
 const initialState: LoyaltyFormState = {};
 
@@ -110,7 +115,13 @@ function transactionTypeLabel(type: string) {
   return type;
 }
 
-function LoyaltyActions({ customer }: { customer: LoyaltyCustomerRow }) {
+function LoyaltyActions({
+  customer,
+  rewardTiers,
+}: {
+  customer: LoyaltyCustomerRow;
+  rewardTiers: RewardTier[];
+}) {
   const [adjustState, adjustAction, isAdjusting] = useActionState(
     adjustLoyaltyPoints,
     initialState
@@ -127,7 +138,7 @@ function LoyaltyActions({ customer }: { customer: LoyaltyCustomerRow }) {
       <div className="grid gap-3">
         <p className="text-sm font-medium">Redeem reward</p>
         <div className="grid gap-2 sm:grid-cols-2">
-          {LOYALTY_REWARDS.map((reward) => (
+          {rewardTiers.map((reward) => (
             <form key={reward.stamps} action={redeemAction}>
               <input type="hidden" name="customerId" value={customer.id} />
               <input type="hidden" name="rewardStamps" value={reward.stamps} />
@@ -163,12 +174,7 @@ function LoyaltyActions({ customer }: { customer: LoyaltyCustomerRow }) {
         </div>
         <div className="grid gap-2">
           <Label htmlFor="remarks">Remarks</Label>
-          <Textarea
-            id="remarks"
-            name="remarks"
-            rows={3}
-            placeholder="Reason for adjustment"
-          />
+          <Textarea id="remarks" name="remarks" rows={3} placeholder="Reason for adjustment" />
         </div>
         {adjustState.error ? (
           <p className="text-sm font-medium text-destructive">{adjustState.error}</p>
@@ -188,36 +194,33 @@ function LoyaltyActions({ customer }: { customer: LoyaltyCustomerRow }) {
   );
 }
 
-export function LoyaltyClient({
+function CustomersPanel({
   customers,
   transactions,
   query,
+  rewardTiers,
 }: {
   customers: LoyaltyCustomerRow[];
   transactions: LoyaltyTransactionRow[];
   query: string;
+  rewardTiers: RewardTier[];
 }) {
   const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?.id ?? "");
-  const activeCustomerId = customers.some(
-    (customer) => customer.id === selectedCustomerId
-  )
+  const activeCustomerId = customers.some((customer) => customer.id === selectedCustomerId)
     ? selectedCustomerId
     : customers[0]?.id ?? "";
   const selectedCustomer = useMemo(
-    () =>
-      customers.find((customer) => customer.id === activeCustomerId) ??
-      customers[0] ??
-      null,
+    () => customers.find((customer) => customer.id === activeCustomerId) ?? customers[0] ?? null,
     [customers, activeCustomerId]
   );
 
   const selectedTransactions = selectedCustomer
-    ? transactions.filter((transaction) => transaction.phoneNumber === selectedCustomer.phoneNumber)
+    ? transactions.filter((transaction) => transaction.email === selectedCustomer.email)
     : [];
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Customers</CardTitle>
@@ -236,19 +239,6 @@ export function LoyaltyClient({
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Earning Rule</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
-              {formatCurrency(LOYALTY_SPEND_PER_STAMP)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              1 stamp per eligible subtotal, delivery fee excluded
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       <Card>
@@ -256,9 +246,7 @@ export function LoyaltyClient({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>Customer Loyalty</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Search by cellphone number or customer name.
-              </p>
+              <p className="text-sm text-muted-foreground">Search by email or customer name.</p>
             </div>
             <form action="/loyalty" className="flex items-center gap-2">
               <Input
@@ -280,7 +268,7 @@ export function LoyaltyClient({
               <TableHeader>
                 <TableRow>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Cellphone</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Stamps</TableHead>
                   <TableHead className="hidden md:table-cell">Visits</TableHead>
                   <TableHead className="hidden lg:table-cell">Last Visit</TableHead>
@@ -289,10 +277,7 @@ export function LoyaltyClient({
               <TableBody>
                 {customers.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="h-24 text-center text-muted-foreground"
-                    >
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       No loyalty customers found.
                     </TableCell>
                   </TableRow>
@@ -304,12 +289,8 @@ export function LoyaltyClient({
                       data-state={selectedCustomer?.id === customer.id ? "selected" : undefined}
                       onClick={() => setSelectedCustomerId(customer.id)}
                     >
-                      <TableCell className="font-medium">
-                        {customer.displayName}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {customer.phoneNumber}
-                      </TableCell>
+                      <TableCell className="font-medium">{customer.displayName}</TableCell>
+                      <TableCell className="text-muted-foreground">{customer.email}</TableCell>
                       <TableCell>
                         <Badge variant={customer.loyaltyPoints >= 5 ? "default" : "secondary"}>
                           {customer.loyaltyPoints}
@@ -332,19 +313,13 @@ export function LoyaltyClient({
             {selectedCustomer ? (
               <div className="grid gap-5">
                 <div className="grid gap-1">
-                  <h2 className="text-lg font-semibold">
-                    {selectedCustomer.displayName}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedCustomer.phoneNumber}
-                  </p>
+                  <h2 className="text-lg font-semibold">{selectedCustomer.displayName}</h2>
+                  <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
                 </div>
                 <div className="grid gap-3">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-muted-foreground">Current stamps</span>
-                    <span className="text-2xl font-bold">
-                      {selectedCustomer.loyaltyPoints}
-                    </span>
+                    <span className="text-2xl font-bold">{selectedCustomer.loyaltyPoints}</span>
                   </div>
                   <LoyaltyStampRow stamps={selectedCustomer.loyaltyPoints} />
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -358,12 +333,10 @@ export function LoyaltyClient({
                     </div>
                   </div>
                 </div>
-                <LoyaltyActions customer={selectedCustomer} />
+                <LoyaltyActions customer={selectedCustomer} rewardTiers={rewardTiers} />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Select a customer to manage rewards.
-              </p>
+              <p className="text-sm text-muted-foreground">Select a customer to manage rewards.</p>
             )}
           </div>
         </CardContent>
@@ -387,51 +360,47 @@ export function LoyaltyClient({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(selectedTransactions.length > 0
-                  ? selectedTransactions
-                  : transactions
-                ).map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell>
-                      <div className="grid gap-0.5">
-                        <span className="font-medium">{transaction.customerName}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {transaction.phoneNumber}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{transactionTypeLabel(transaction.type)}</TableCell>
-                    <TableCell
-                      className={
-                        transaction.points < 0
-                          ? "text-destructive"
-                          : "text-emerald-700 dark:text-emerald-400"
-                      }
-                    >
-                      {transaction.points > 0 ? (
-                        <PlusCircle className="mr-1 inline size-3.5" />
-                      ) : (
-                        <MinusCircle className="mr-1 inline size-3.5" />
-                      )}
-                      {transaction.points}
-                    </TableCell>
-                    <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {transaction.orderNumber ?? "-"}
-                    </TableCell>
-                    <TableCell className="hidden max-w-72 truncate text-muted-foreground lg:table-cell">
-                      {transaction.rewardName ?? transaction.remarks ?? "-"}
-                    </TableCell>
-                    <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {formatDate(transaction.createdAt)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {(selectedTransactions.length > 0 ? selectedTransactions : transactions).map(
+                  (transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell>
+                        <div className="grid gap-0.5">
+                          <span className="font-medium">{transaction.customerName}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {transaction.email}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{transactionTypeLabel(transaction.type)}</TableCell>
+                      <TableCell
+                        className={
+                          transaction.points < 0
+                            ? "text-destructive"
+                            : "text-emerald-700 dark:text-emerald-400"
+                        }
+                      >
+                        {transaction.points > 0 ? (
+                          <PlusCircle className="mr-1 inline size-3.5" />
+                        ) : (
+                          <MinusCircle className="mr-1 inline size-3.5" />
+                        )}
+                        {transaction.points}
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">
+                        {transaction.orderNumber ?? "-"}
+                      </TableCell>
+                      <TableCell className="hidden max-w-72 truncate text-muted-foreground lg:table-cell">
+                        {transaction.rewardName ?? transaction.remarks ?? "-"}
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">
+                        {formatDate(transaction.createdAt)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                )}
                 {transactions.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="h-24 text-center text-muted-foreground"
-                    >
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                       No loyalty activity yet.
                     </TableCell>
                   </TableRow>
@@ -442,5 +411,58 @@ export function LoyaltyClient({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export function LoyaltyClient({
+  customers,
+  transactions,
+  query,
+  rewardTiers,
+  spendPerStamp,
+  canManage,
+}: {
+  customers: LoyaltyCustomerRow[];
+  transactions: LoyaltyTransactionRow[];
+  query: string;
+  rewardTiers: RewardTier[];
+  spendPerStamp: number;
+  canManage: boolean;
+}) {
+  if (!canManage) {
+    return <ScanAwardPanel />;
+  }
+
+  return (
+    <Tabs defaultValue="scan">
+      <TabsList>
+        <TabsTrigger value="scan">
+          <ScanLine className="size-4" />
+          Scan &amp; Award
+        </TabsTrigger>
+        <TabsTrigger value="customers">
+          <Users className="size-4" />
+          Customers
+        </TabsTrigger>
+        <TabsTrigger value="settings">
+          <Settings className="size-4" />
+          Program Settings
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="scan" className="mt-4">
+        <ScanAwardPanel />
+      </TabsContent>
+      <TabsContent value="customers" className="mt-4">
+        <CustomersPanel
+          customers={customers}
+          transactions={transactions}
+          query={query}
+          rewardTiers={rewardTiers}
+        />
+      </TabsContent>
+      <TabsContent value="settings" className="mt-4">
+        <ProgramSettingsPanel spendPerStamp={spendPerStamp} rewardTiers={rewardTiers} />
+      </TabsContent>
+    </Tabs>
   );
 }

@@ -1,42 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useMemo, useState, useTransition } from "react";
-import {
-  Gift,
-  History,
-  LogIn,
-  Search,
-  Sparkles,
-  UserPlus,
-  WalletCards,
-} from "lucide-react";
-import { toast } from "sonner";
-import {
-  loginCustomerLoyalty,
-  signupCustomerLoyalty,
-  type CustomerLoyaltyCard,
-} from "@/app/customer-loyalty-actions";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { Search, WalletCards } from "lucide-react";
 import type { CustomerMenuProduct } from "@/lib/customer-menu";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-
-type LoyaltyMode = "login" | "signup";
-
-const REWARD_ROWS = [
-  { start: 0, rewardAt: 5 },
-  { start: 5, rewardAt: 10 },
-];
 
 export function PublicMenuClient({
   products,
@@ -47,11 +19,6 @@ export function PublicMenuClient({
     products[0]?.category ?? "Menu"
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoyaltyOpen, setIsLoyaltyOpen] = useState(false);
-  const [loyaltyMode, setLoyaltyMode] = useState<LoyaltyMode>("login");
-  const [loyaltyCard, setLoyaltyCard] = useState<CustomerLoyaltyCard | null>(null);
-  const [loyaltyError, setLoyaltyError] = useState("");
-  const [isPending, startTransition] = useTransition();
 
   const categories = useMemo(
     () => Array.from(new Set(products.map((product) => product.category))),
@@ -82,38 +49,6 @@ export function PublicMenuClient({
     return Array.from(groups.entries());
   }, [visibleProducts]);
 
-  function openLoyalty(mode: LoyaltyMode) {
-    setLoyaltyMode(mode);
-    setLoyaltyError("");
-    setIsLoyaltyOpen(true);
-  }
-
-  function handleLoyaltySubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    setLoyaltyError("");
-
-    startTransition(async () => {
-      const result =
-        loyaltyMode === "login"
-          ? await loginCustomerLoyalty(formData)
-          : await signupCustomerLoyalty(formData);
-
-      if (result.error) {
-        setLoyaltyError(result.error);
-        toast.error(result.error);
-        return;
-      }
-
-      setLoyaltyCard(result.card ?? null);
-      toast.success(
-        loyaltyMode === "login"
-          ? "eLoyalty card loaded"
-          : "eLoyalty account created"
-      );
-    });
-  }
-
   return (
     <main className="min-h-screen bg-[#fff8ef] text-[#281713]">
       <header className="sticky top-0 z-30 border-b border-[#e7c7a8] bg-[#fff8ef]/95 backdrop-blur">
@@ -135,13 +70,11 @@ export function PublicMenuClient({
             </div>
           </div>
 
-          <Button
-            type="button"
-            className="h-10 bg-[#c45a23] px-4 text-white hover:bg-[#a94618]"
-            onClick={() => openLoyalty("login")}
-          >
-            <WalletCards className="size-4" />
-            eLoyalty Card
+          <Button asChild className="h-10 bg-[#c45a23] px-4 text-white hover:bg-[#a94618]">
+            <Link href="/">
+              <WalletCards className="size-4" />
+              eLoyalty Card
+            </Link>
           </Button>
         </div>
       </header>
@@ -264,276 +197,6 @@ export function PublicMenuClient({
           ) : null}
         </div>
       </section>
-
-      <Dialog open={isLoyaltyOpen} onOpenChange={setIsLoyaltyOpen}>
-        <DialogContent className="max-h-[94svh] overflow-y-auto sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <WalletCards className="size-5 text-[#c45a23]" />
-              eLoyalty Card
-            </DialogTitle>
-          </DialogHeader>
-
-          {loyaltyCard ? (
-            <div className="grid gap-4">
-              <LoyaltyCardView card={loyaltyCard} />
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setLoyaltyCard(null);
-                    setLoyaltyMode("login");
-                  }}
-                >
-                  Use another number
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-              <div className="rounded-lg border bg-muted/30 p-4">
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={loyaltyMode === "login" ? "default" : "outline"}
-                    onClick={() => {
-                      setLoyaltyMode("login");
-                      setLoyaltyError("");
-                    }}
-                  >
-                    <LogIn className="size-4" />
-                    Login
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={loyaltyMode === "signup" ? "default" : "outline"}
-                    onClick={() => {
-                      setLoyaltyMode("signup");
-                      setLoyaltyError("");
-                    }}
-                  >
-                    <UserPlus className="size-4" />
-                    Sign up
-                  </Button>
-                </div>
-
-                <form onSubmit={handleLoyaltySubmit} className="mt-4 grid gap-3">
-                  <div className="grid gap-2">
-                    <Label htmlFor="loyalty-phone">Phone number</Label>
-                    <Input
-                      id="loyalty-phone"
-                      name="phoneNumber"
-                      inputMode="tel"
-                      required
-                    />
-                  </div>
-
-                  {loyaltyMode === "signup" ? (
-                    <>
-                      <div className="grid gap-2">
-                        <Label htmlFor="loyalty-name">Name</Label>
-                        <Input id="loyalty-name" name="displayName" required />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="loyalty-address">Address</Label>
-                        <Textarea id="loyalty-address" name="address" rows={3} />
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                          <Label htmlFor="loyalty-email">Email</Label>
-                          <Input id="loyalty-email" name="email" type="email" />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="loyalty-birthday">Birthday</Label>
-                          <Input id="loyalty-birthday" name="birthday" type="date" />
-                        </div>
-                      </div>
-                    </>
-                  ) : null}
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="loyalty-password">Password</Label>
-                    <Input
-                      id="loyalty-password"
-                      name="password"
-                      type="password"
-                      minLength={6}
-                      required
-                    />
-                  </div>
-
-                  {loyaltyError ? (
-                    <p className="text-sm font-medium text-destructive" role="alert">
-                      {loyaltyError}
-                    </p>
-                  ) : null}
-
-                  <Button type="submit" disabled={isPending}>
-                    {isPending
-                      ? "Please wait..."
-                      : loyaltyMode === "login"
-                        ? "Open eLoyalty Card"
-                        : "Create eLoyalty Card"}
-                  </Button>
-                </form>
-              </div>
-
-              <LoyaltyCardPreview />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </main>
-  );
-}
-
-function LoyaltyCardPreview() {
-  return (
-    <div className="hidden overflow-hidden rounded-xl bg-[#fb8428] p-5 text-[#7a2f14] lg:grid">
-      <div className="grid gap-5">
-        <div className="grid gap-2">
-          <p className="text-4xl font-black tracking-wide">KP CARD</p>
-          <p className="max-w-md text-xl">
-            Participate, try your best, and shine. Fill this card with kp stamps
-            to earn a special reward.
-          </p>
-        </div>
-        <div className="grid grid-cols-6 gap-3">
-          {Array.from({ length: 12 }).map((_, index) => (
-            <div
-              key={index}
-              className="grid aspect-square place-items-center rounded-3xl bg-[#fff4d5]"
-            >
-              {index < 3 ? (
-                <Image
-                  src="/kanto-logo.png"
-                  alt=""
-                  width={74}
-                  height={74}
-                  className="size-18 object-contain opacity-80"
-                />
-              ) : index === 5 || index === 11 ? (
-                <Gift className="size-14 text-[#e89362]" />
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LoyaltyCardView({ card }: { card: CustomerLoyaltyCard }) {
-  const points = card.loyaltyPoints;
-
-  return (
-    <div className="grid gap-4">
-      <div className="overflow-hidden rounded-xl bg-[#fb8428] p-5 text-[#7a2f14] shadow-sm sm:p-8">
-        <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-          <div>
-            <p className="text-5xl font-black tracking-wide sm:text-7xl">KP CARD</p>
-            <p className="mt-4 max-w-2xl text-xl leading-relaxed sm:text-3xl">
-              Participate, try your best, and shine. Fill this card with kp
-              stamps to earn a special reward.
-            </p>
-          </div>
-          <div className="self-start">
-            <p className="text-xl sm:text-3xl">This card belongs to:</p>
-            <p className="mt-3 border-b-4 border-[#fff4d5] pb-2 font-serif text-4xl italic sm:text-5xl">
-              {card.displayName}
-            </p>
-            <p className="mt-3 text-sm font-semibold">Phone: {card.phoneNumber}</p>
-          </div>
-        </div>
-
-        <div className="mt-8 grid gap-5">
-          {REWARD_ROWS.map((row) => (
-            <div key={row.rewardAt} className="grid grid-cols-6 gap-3 sm:gap-5">
-              {Array.from({ length: 5 }).map((_, offset) => {
-                const stampNumber = row.start + offset + 1;
-                const isEarned = points >= stampNumber;
-
-                return (
-                  <div
-                    key={stampNumber}
-                    className="grid aspect-square place-items-center rounded-3xl bg-[#fff4d5]"
-                  >
-                    {isEarned ? (
-                      <Image
-                        src="/kanto-logo.png"
-                        alt=""
-                        width={120}
-                        height={120}
-                        className="size-16 object-contain sm:size-24"
-                      />
-                    ) : null}
-                  </div>
-                );
-              })}
-              <div className="grid aspect-square place-items-center rounded-3xl bg-[#fff4d5]">
-                <Gift
-                  className={`size-14 sm:size-24 ${
-                    points >= row.rewardAt ? "text-[#c45a23]" : "text-[#e89362]"
-                  }`}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-3 text-sm font-bold sm:text-base">
-          <Badge className="bg-[#7a2f14] text-white hover:bg-[#7a2f14]">
-            {points} current stamp{points === 1 ? "" : "s"}
-          </Badge>
-          <Badge className="bg-[#fff4d5] text-[#7a2f14] hover:bg-[#fff4d5]">
-            {card.lifetimePoints} lifetime
-          </Badge>
-          {card.nextRewardStamps ? (
-            <Badge className="bg-[#fff4d5] text-[#7a2f14] hover:bg-[#fff4d5]">
-              Next reward at {card.nextRewardStamps}
-            </Badge>
-          ) : (
-            <Badge className="bg-[#fff4d5] text-[#7a2f14] hover:bg-[#fff4d5]">
-              Reward available
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-3 rounded-lg border bg-card p-4">
-        <div className="flex items-center gap-2 font-semibold">
-          <History className="size-4 text-primary" />
-          Recent stamp activity
-        </div>
-        {card.latestTransactions.length > 0 ? (
-          <div className="grid gap-2">
-            {card.latestTransactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="grid gap-1 rounded-md border bg-muted/30 p-3 text-sm"
-              >
-                <div className="flex flex-wrap justify-between gap-2 font-medium">
-                  <span>
-                    {transaction.points > 0 ? "+" : ""}
-                    {transaction.points} stamp
-                    {Math.abs(transaction.points) === 1 ? "" : "s"}
-                  </span>
-                  <span>{formatDate(transaction.createdAt)}</span>
-                </div>
-                <p className="text-muted-foreground">
-                  {transaction.remarks ?? transaction.rewardName ?? transaction.type}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-            <Sparkles className="size-4" />
-            No stamp activity yet.
-          </div>
-        )}
-      </div>
-    </div>
   );
 }

@@ -10,7 +10,8 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isOnLogin = nextUrl.pathname === "/login";
-      const isOnPublicMenu = nextUrl.pathname === "/";
+      const isOnPublicCustomerRoute =
+        nextUrl.pathname === "/" || nextUrl.pathname === "/order";
       const isOnChangePassword = nextUrl.pathname === "/change-password";
       const mustChangePassword = auth?.user?.mustChangePassword;
 
@@ -18,7 +19,7 @@ export const authConfig = {
         return true;
       }
 
-      if (isOnPublicMenu) return true;
+      if (isOnPublicCustomerRoute) return true;
 
       if (isLoggedIn && mustChangePassword && !isOnChangePassword) {
         return Response.redirect(new URL("/change-password", nextUrl));

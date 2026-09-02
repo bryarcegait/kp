@@ -12,10 +12,10 @@ import { hasPermission } from "@/lib/permissions";
 import { canViewCashSummary } from "@/lib/cash-summary-access";
 import { canViewSchedule } from "@/lib/schedule-access";
 import { canViewBank } from "@/lib/bank-access";
-import { canManageLoyalty } from "@/lib/loyalty-access";
+import { canAwardLoyalty } from "@/lib/loyalty-access";
 import { canViewMonthlyReport } from "@/lib/monthly-report-access";
 
-const STAFF_VISIBLE_HREFS = new Set(["/dashboard", "/my-calendar"]);
+const STAFF_VISIBLE_HREFS = new Set(["/dashboard", "/my-calendar", "/loyalty"]);
 
 export default async function AppLayout({
   children,
@@ -39,7 +39,7 @@ export default async function AppLayout({
     if (item.href === "/cash-summary") return canViewCashSummary(session?.user);
     if (item.href === "/bank") return canViewBank(session?.user);
     if (item.href === "/monthly-report") return canViewMonthlyReport(session?.user);
-    if (item.href === "/loyalty") return canManageLoyalty(session?.user);
+    if (item.href === "/loyalty") return canAwardLoyalty(session?.user);
     if (item.href === "/schedule") return canViewSchedule(session?.user);
     return !item.permission || hasPermission(permissions, item.permission);
   }).map((item) => item.href);

@@ -12,6 +12,7 @@ export const PERMISSIONS = [
   { key: "bank.view", label: "View bank ledger", module: "Bank" },
   { key: "bank.manage", label: "Update bank ledger", module: "Bank" },
   { key: "loyalty.manage", label: "Manage loyalty cards", module: "Loyalty" },
+  { key: "loyalty.award", label: "Scan customer QR & award stamps", module: "Loyalty" },
   { key: "menu.manage", label: "Manage restaurant menu", module: "Menu" },
   { key: "schedule.view", label: "View employee schedule", module: "Schedule" },
   { key: "schedule.manage", label: "Update employee schedule", module: "Schedule" },
@@ -56,6 +57,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
     "schedule.view",
     "schedule.manage",
     "users.view",
+    "loyalty.award",
   ],
-  Staff: ["expenses.view", "expenses.create", "schedule.view"],
+  Staff: ["expenses.view", "expenses.create", "schedule.view", "loyalty.award"],
 };

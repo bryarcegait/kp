@@ -220,25 +220,50 @@ model CustomerOrder {
 }
 
 model Customer {
-  id             String    @id @default(cuid())
-  phoneNumber    String    @unique
-  displayName    String
-  email          String?
-  address        String?   @db.Text
-  birthday       DateTime? @db.Date
-  passwordHash   String?   @db.Text
-  loyaltyPoints  Int       @default(0)
-  lifetimePoints Int       @default(0)
-  redeemedPoints Int       @default(0)
-  lastOrderAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                         String    @id @default(cuid())
+  phoneNumber                String?   @unique
+  displayName                String
+  email                      String    @unique
+  address                    String?   @db.Text
+  birthday                   DateTime? @db.Date
+  passwordHash               String    @db.Text
+  emailVerified              Boolean   @default(false)
+  verificationTokenHash      String?   @unique
+  verificationTokenExpiresAt DateTime?
+  loyaltyCode                String    @unique
+  loyaltyPoints              Int       @default(0)
+  lifetimePoints             Int       @default(0)
+  redeemedPoints             Int       @default(0)
+  pendingStampAmount         Decimal   @default(0) @db.Decimal(12, 2)
+  lastOrderAt                DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 
   orders              CustomerOrder[]
   loyaltyTransactions LoyaltyTransaction[]
 
   @@index([displayName])
   @@map("customers")
+}
+
+model LoyaltyReward {
+  id             String   @id @default(cuid())
+  stampsRequired Int      @unique
+  rewardName     String
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("loyalty_rewards")
+}
+
+model LoyaltySettings {
+  id            String   @id @default("default")
+  spendPerStamp Decimal  @default(200) @db.Decimal(12, 2)
+  updatedAt     DateTime @updatedAt
+
+  @@map("loyalty_settings")
 }
 
 model LoyaltyTransaction {

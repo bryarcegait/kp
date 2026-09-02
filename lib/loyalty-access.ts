@@ -11,3 +11,7 @@ export function canManageLoyalty(user?: LoyaltyUser | null) {
     hasPermission(user?.permissions, "loyalty.manage")
   );
 }
+
+export function canAwardLoyalty(user?: LoyaltyUser | null) {
+  return canManageLoyalty(user) || hasPermission(user?.permissions, "loyalty.award");
+}

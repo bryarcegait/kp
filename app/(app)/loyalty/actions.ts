@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { canManageLoyalty } from "@/lib/loyalty-access";
-import { LOYALTY_REWARDS } from "@/lib/loyalty";
+import { canManageLoyalty, canAwardLoyalty } from "@/lib/loyalty-access";
+import { getLoyaltyRewards, getLoyaltySpendPerStamp, getNextLoyaltyReward, applySpend } from "@/lib/loyalty";
 
 const adjustSchema = z.object({
   customerId: z.string().min(1),
@@ -20,9 +20,32 @@ const redeemSchema = z.object({
   rewardStamps: z.coerce.number().int(),
 });
 
+const awardSchema = z.object({
+  loyaltyCode: z.string().min(1, "Scan or upload a loyalty QR code first."),
+  amount: z.coerce.number().positive("Enter the order amount."),
+  source: z.enum(["in_store", "online"]),
+});
+
+const rewardSchema = z.object({
+  stampsRequired: z.coerce.number().int().min(1).max(1000),
+  rewardName: z.string().trim().min(1, "Reward name is required.").max(200),
+});
+
+const settingsSchema = z.object({
+  spendPerStamp: z.coerce.number().positive("Must be greater than zero."),
+});
+
 export type LoyaltyFormState = {
   error?: string;
   success?: string;
+};
+
+export type AwardLoyaltyState = {
+  error?: string;
+  success?: string;
+  customerName?: string;
+  stampsEarned?: number;
+  message?: string;
 };
 
 async function requireLoyaltyManager() {
@@ -30,6 +53,15 @@ async function requireLoyaltyManager() {
   if (!session) return { error: "You must be signed in." } as const;
   if (!canManageLoyalty(session.user)) {
     return { error: "Only System Admin can manage loyalty cards." } as const;
+  }
+  return { session } as const;
+}
+
+async function requireLoyaltyAwarder() {
+  const session = await auth();
+  if (!session) return { error: "You must be signed in." } as const;
+  if (!canAwardLoyalty(session.user)) {
+    return { error: "You don't have permission to award stamps." } as const;
   }
   return { session } as const;
 }
@@ -57,6 +89,7 @@ export async function adjustLoyaltyPoints(
 
   const { customerId, points, remarks } = parsed.data;
   const result = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM customers WHERE id = ${customerId} FOR UPDATE`;
     const customer = await tx.customer.findUnique({ where: { id: customerId } });
     if (!customer) return { error: "Customer not found." } as const;
 
@@ -107,12 +140,12 @@ export async function redeemLoyaltyReward(
     return { error: "Please choose a valid reward." };
   }
 
-  const reward = LOYALTY_REWARDS.find(
-    (item) => item.stamps === parsed.data.rewardStamps
-  );
+  const rewards = await getLoyaltyRewards();
+  const reward = rewards.find((item) => item.stamps === parsed.data.rewardStamps);
   if (!reward) return { error: "Reward not found." };
 
   const result = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM customers WHERE id = ${parsed.data.customerId} FOR UPDATE`;
     const customer = await tx.customer.findUnique({
       where: { id: parsed.data.customerId },
     });
@@ -146,4 +179,181 @@ export async function redeemLoyaltyReward(
 
   revalidateLoyalty();
   return result;
+}
+
+const REPLAY_GUARD_WINDOW_MS = 5000;
+
+export async function awardLoyaltyStamps(
+  _prevState: AwardLoyaltyState,
+  formData: FormData
+): Promise<AwardLoyaltyState> {
+  const guard = await requireLoyaltyAwarder();
+  if ("error" in guard) return { error: guard.error };
+
+  const parsed = awardSchema.safeParse({
+    loyaltyCode: formData.get("loyaltyCode"),
+    amount: formData.get("amount"),
+    source: formData.get("source"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid award." };
+  }
+
+  const spendPerStamp = await getLoyaltySpendPerStamp();
+  const rewards = await getLoyaltyRewards();
+
+  const result = await db.$transaction(async (tx) => {
+    const customer = await tx.customer.findUnique({
+      where: { loyaltyCode: parsed.data.loyaltyCode },
+    });
+    if (!customer) return { error: "No account found for that QR code." } as const;
+
+    await tx.$queryRaw`SELECT id FROM customers WHERE id = ${customer.id} FOR UPDATE`;
+
+    const lastTransaction = await tx.loyaltyTransaction.findFirst({
+      where: { customerId: customer.id, type: "earned" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (
+      lastTransaction &&
+      Date.now() - lastTransaction.createdAt.getTime() < REPLAY_GUARD_WINDOW_MS
+    ) {
+      return {
+        error: "Stamps were just awarded to this customer — please wait a few seconds before scanning again.",
+      } as const;
+    }
+
+    const { stampsEarned, newPendingAmount } = applySpend(
+      Number(customer.pendingStampAmount),
+      parsed.data.amount,
+      spendPerStamp
+    );
+
+    const updated = await tx.customer.update({
+      where: { id: customer.id },
+      data: {
+        pendingStampAmount: newPendingAmount,
+        ...(stampsEarned > 0
+          ? { loyaltyPoints: { increment: stampsEarned }, lifetimePoints: { increment: stampsEarned } }
+          : {}),
+        lastOrderAt: new Date(),
+      },
+    });
+
+    if (stampsEarned > 0) {
+      await tx.loyaltyTransaction.create({
+        data: {
+          customerId: customer.id,
+          type: "earned",
+          points: stampsEarned,
+          balanceAfter: updated.loyaltyPoints,
+          remarks: `${parsed.data.source === "in_store" ? "In-store" : "Online order"} spend of ₱${parsed.data.amount.toFixed(2)}`,
+          createdById: guard.session.user.id,
+        },
+      });
+    }
+
+    const nextReward = getNextLoyaltyReward(updated.loyaltyPoints, rewards);
+    const message =
+      stampsEarned > 0
+        ? `You earned ${stampsEarned} stamp${stampsEarned === 1 ? "" : "s"}! ${
+            nextReward
+              ? `${nextReward.stamps - updated.loyaltyPoints} more to get ${nextReward.name}.`
+              : "You have a reward ready to redeem!"
+          }`
+        : `₱${parsed.data.amount.toFixed(2)} recorded. ₱${(spendPerStamp - newPendingAmount).toFixed(2)} more to earn a stamp.`;
+
+    return {
+      success: "Stamps awarded.",
+      customerName: customer.displayName,
+      stampsEarned,
+      message,
+    } as const;
+  });
+
+  revalidateLoyalty();
+  return result;
+}
+
+export async function findCustomerByLoyaltyCode(loyaltyCode: string) {
+  const guard = await requireLoyaltyAwarder();
+  if ("error" in guard) return { error: guard.error } as const;
+
+  const customer = await db.customer.findUnique({
+    where: { loyaltyCode },
+    select: { id: true, displayName: true, loyaltyPoints: true },
+  });
+  if (!customer) return { error: "No account found for that QR code." } as const;
+  return { customer } as const;
+}
+
+export async function upsertLoyaltyReward(
+  _prevState: LoyaltyFormState,
+  formData: FormData
+): Promise<LoyaltyFormState> {
+  const guard = await requireLoyaltyManager();
+  if ("error" in guard) return { error: guard.error };
+
+  const parsed = rewardSchema.safeParse({
+    stampsRequired: formData.get("stampsRequired"),
+    rewardName: formData.get("rewardName"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid reward." };
+  }
+
+  await db.loyaltyReward.upsert({
+    where: { stampsRequired: parsed.data.stampsRequired },
+    update: { rewardName: parsed.data.rewardName, isActive: true },
+    create: {
+      stampsRequired: parsed.data.stampsRequired,
+      rewardName: parsed.data.rewardName,
+      sortOrder: parsed.data.stampsRequired,
+    },
+  });
+
+  revalidateLoyalty();
+  return { success: "Reward tier saved." };
+}
+
+export async function deactivateLoyaltyReward(
+  _prevState: LoyaltyFormState,
+  formData: FormData
+): Promise<LoyaltyFormState> {
+  const guard = await requireLoyaltyManager();
+  if ("error" in guard) return { error: guard.error };
+
+  const stampsRequired = Number(formData.get("stampsRequired"));
+  if (!stampsRequired) return { error: "Reward not found." };
+
+  await db.loyaltyReward.update({
+    where: { stampsRequired },
+    data: { isActive: false },
+  });
+
+  revalidateLoyalty();
+  return { success: "Reward tier removed." };
+}
+
+export async function updateLoyaltySettings(
+  _prevState: LoyaltyFormState,
+  formData: FormData
+): Promise<LoyaltyFormState> {
+  const guard = await requireLoyaltyManager();
+  if ("error" in guard) return { error: guard.error };
+
+  const parsed = settingsSchema.safeParse({ spendPerStamp: formData.get("spendPerStamp") });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid setting." };
+  }
+
+  await db.loyaltySettings.upsert({
+    where: { id: "default" },
+    update: { spendPerStamp: parsed.data.spendPerStamp },
+    create: { id: "default", spendPerStamp: parsed.data.spendPerStamp },
+  });
+
+  revalidateLoyalty();
+  return { success: "Earning rule updated." };
 }

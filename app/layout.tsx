@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Caveat } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -29,9 +30,18 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--font-handwritten",
+});
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`h-full antialiased ${caveat.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <TooltipProvider>{children}</TooltipProvider>
