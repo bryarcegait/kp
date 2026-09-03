@@ -11,7 +11,9 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const isOnLogin = nextUrl.pathname === "/login";
       const isOnPublicCustomerRoute =
-        nextUrl.pathname === "/" || nextUrl.pathname === "/order";
+        nextUrl.pathname === "/" ||
+        nextUrl.pathname === "/order" ||
+        nextUrl.pathname === "/privacy";
       const isOnChangePassword = nextUrl.pathname === "/change-password";
       const mustChangePassword = auth?.user?.mustChangePassword;
 
