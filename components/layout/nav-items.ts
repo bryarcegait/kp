@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   CalendarDays,
   Landmark,
+  Wallet,
   Gift,
   ChartNoAxesCombined,
   Utensils,
@@ -31,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { title: "Daily Expenses", href: "/expenses", icon: Receipt, permission: "expenses.view" },
   { title: "Bank", href: "/bank", icon: Landmark, permission: "bank.view" },
+  { title: "GCash", href: "/gcash", icon: Wallet, permission: "gcash.manage" },
   {
     title: "Monthly Report",
     href: "/monthly-report",

@@ -11,6 +11,7 @@ export const PERMISSIONS = [
   { key: "cash_summary.manage", label: "Update daily cash closeout", module: "Daily Cash Closeout" },
   { key: "bank.view", label: "View bank ledger", module: "Bank" },
   { key: "bank.manage", label: "Update bank ledger", module: "Bank" },
+  { key: "gcash.manage", label: "Manage GCash remittances & expenses", module: "GCash" },
   { key: "loyalty.manage", label: "Manage loyalty cards", module: "Loyalty" },
   { key: "loyalty.award", label: "Scan customer QR & award stamps", module: "Loyalty" },
   { key: "menu.manage", label: "Manage restaurant menu", module: "Menu" },

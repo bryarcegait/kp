@@ -92,6 +92,7 @@ export type LoyverseTodayReport = {
   cashTotal: number;
   cardTotal: number;
   otherTotal: number;
+  gcashTotal: number;
   grossSales: number;
   deliveryFeeTotal: number;
   netSales: number;
@@ -264,11 +265,13 @@ export async function getLoyverseTodayReport(date: Date | string = new Date()) {
   ]);
 
   const paymentTypesById = new Map(paymentTypes.map((type) => [type.id, type]));
+  const gcashPaymentTypeId = process.env.LOYVERSE_GCASH_PAYMENT_TYPE_ID;
   const summaries = new Map<string, LoyversePaymentSummary>();
   let receiptCount = 0;
   let paymentCount = 0;
   let grossSales = 0;
   let deliveryFeeTotal = 0;
+  let gcashTotal = 0;
 
   for (const receipt of receipts) {
     if (receipt.cancelled_at) continue;
@@ -291,6 +294,9 @@ export async function getLoyverseTodayReport(date: Date | string = new Date()) {
       const label = paymentType?.name ?? payment.name ?? "Other";
       const key = `${kind}:${label}`;
       const amount = getPaymentAmount(payment, receipt) * factor;
+      if (gcashPaymentTypeId && payment.payment_type_id === gcashPaymentTypeId) {
+        gcashTotal += amount;
+      }
       const current =
         summaries.get(key) ??
         ({
@@ -324,6 +330,7 @@ export async function getLoyverseTodayReport(date: Date | string = new Date()) {
     otherTotal: payments
       .filter((payment) => payment.type === "other")
       .reduce((sum, payment) => sum + payment.total, 0),
+    gcashTotal,
     grossSales,
     deliveryFeeTotal,
     netSales: grossSales - deliveryFeeTotal,
@@ -364,5 +371,16 @@ export async function saveLoyverseDailyReport(date: Date | string = new Date()) 
       paymentBreakdown: report.payments,
       fetchedAt: new Date(),
     },
+  });
+}
+
+export async function saveLoyverseGcashSale(date: Date | string = new Date()) {
+  const report = await getLoyverseTodayReport(date);
+  const businessDate = toDateOnly(report.date);
+
+  return db.dailyGcashSale.upsert({
+    where: { businessDate },
+    update: { gcashTotal: report.gcashTotal, fetchedAt: new Date() },
+    create: { businessDate, gcashTotal: report.gcashTotal, fetchedAt: new Date() },
   });
 }

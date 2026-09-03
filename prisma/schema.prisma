@@ -74,6 +74,7 @@ model User {
   cashSummariesUpdated DailyCashSummary[]   @relation("CashSummaryUpdatedBy")
   schedules            EmployeeSchedule[]
   bankEntries          BankEntry[]
+  gcashEntries         GcashEntry[]
   loyaltyTransactions  LoyaltyTransaction[]
   loyverseOrdersSent   CustomerOrder[]      @relation("LoyverseOrderSentBy")
 
@@ -184,6 +185,44 @@ model DailyPosReport {
   updatedAt        DateTime @updatedAt
 
   @@map("daily_pos_reports")
+}
+
+// Cached per-day GCash sales total from Loyverse (same pattern as
+// DailyPosReport), kept separate so syncing it never touches the cash
+// summary/bank flows that already read DailyPosReport.
+model DailyGcashSale {
+  id           String   @id @default(cuid())
+  businessDate DateTime @unique @db.Date
+  gcashTotal   Decimal  @default(0) @db.Decimal(12, 2)
+  fetchedAt    DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("daily_gcash_sales")
+}
+
+// A GCash ledger entry: either money remitted from the GCash wallet to the
+// admin, or a supply expense paid directly out of the GCash wallet. Both
+// entry types subtract from the synced GCash sales total, so `amount` is
+// always stored positive.
+model GcashEntry {
+  id           String    @id @default(cuid())
+  entryType    String
+  businessDate DateTime? @db.Date
+  name         String
+  amount       Decimal   @db.Decimal(12, 2)
+  remarks      String?   @db.Text
+  receiptUrl   String    @db.Text
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([entryType])
+  @@index([businessDate])
+  @@index([createdById])
+  @@map("gcash_entries")
 }
 
 model CustomerOrder {
