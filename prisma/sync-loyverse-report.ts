@@ -38,6 +38,7 @@ async function main() {
         cashTotal: report.cashTotal.toString(),
         cardTotal: report.cardTotal.toString(),
         otherTotal: report.otherTotal.toString(),
+        gcashTotal: report.gcashTotal.toString(),
         receiptCount: report.receiptCount,
         paymentCount: report.paymentCount,
       },

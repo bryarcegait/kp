@@ -177,6 +177,7 @@ model DailyPosReport {
   cashTotal        Decimal  @default(0) @db.Decimal(12, 2)
   cardTotal        Decimal  @default(0) @db.Decimal(12, 2)
   otherTotal       Decimal  @default(0) @db.Decimal(12, 2)
+  gcashTotal       Decimal  @default(0) @db.Decimal(12, 2)
   receiptCount     Int      @default(0)
   paymentCount     Int      @default(0)
   paymentBreakdown Json

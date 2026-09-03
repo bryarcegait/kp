@@ -15,6 +15,7 @@ import {
   Scale,
   ShieldCheck,
   ShoppingBag,
+  Smartphone,
   Truck,
   Users,
   Wallet,
@@ -104,6 +105,7 @@ export default async function DashboardPage() {
           netSales: loyverseResult.report.netSales,
           cashTotal: loyverseResult.report.cashTotal,
           cardTotal: loyverseResult.report.cardTotal,
+          gcashTotal: loyverseResult.report.gcashTotal,
         }
       : null);
   const posReportSource = savedPosReport ? "Saved POS snapshot" : "Live Loyverse";
@@ -113,7 +115,7 @@ export default async function DashboardPage() {
       ? calculateCashReconciliation({
           startingAmount: Number(cashSummary?.startingAmount ?? 0),
           cashSales: Number(posReport.cashTotal),
-          gcashSales: Number(posReport.cardTotal),
+          gcashSales: Number(posReport.gcashTotal),
           expenses: Number(todayExpenses?._sum.amount ?? 0),
           adjustments: Number(cashSummary?.adjustments ?? 0),
           cashOnHand: Number(cashSummary?.cashOnHand ?? 0),
@@ -181,8 +183,8 @@ export default async function DashboardPage() {
               <div>
                 <CardTitle>Today&apos;s Cash Reconciliation</CardTitle>
                 <CardDescription>
-                  POS cash and GCash come from Loyverse. Expenses come from the
-                  Expenses page.
+                  POS cash, card, and GCash come from Loyverse. Expenses come
+                  from the Expenses page.
                 </CardDescription>
               </div>
               {reconciliation ? (
@@ -230,9 +232,14 @@ export default async function DashboardPage() {
                     icon={Banknote}
                   />
                   <DashboardMetric
-                    title="GCash / Card Sales"
-                    value={formatCurrency(reconciliation.gcashSales)}
+                    title="POS Card Sales"
+                    value={formatCurrency(Number(posReport.cardTotal))}
                     icon={CreditCard}
+                  />
+                  <DashboardMetric
+                    title="GCash Sales"
+                    value={formatCurrency(reconciliation.gcashSales)}
+                    icon={Smartphone}
                   />
                   <DashboardMetric
                     title="Adjustments"

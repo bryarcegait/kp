@@ -132,7 +132,7 @@ export default async function CashSummaryPage({
               : "No Loyverse POS data has been synced for this date yet."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
+        <CardContent className="grid gap-3 text-sm sm:grid-cols-5">
           <div>
             <p className="text-muted-foreground">Net Sales</p>
             <p className="font-medium">
@@ -146,10 +146,21 @@ export default async function CashSummaryPage({
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground">Cash / GCash</p>
+            <p className="text-muted-foreground">Cash</p>
             <p className="font-medium">
-              {formatCurrency(posReport?.cashTotal.toString() ?? 0)} /{" "}
+              {formatCurrency(posReport?.cashTotal.toString() ?? 0)}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Card</p>
+            <p className="font-medium">
               {formatCurrency(posReport?.cardTotal.toString() ?? 0)}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">GCash</p>
+            <p className="font-medium">
+              {formatCurrency(posReport?.gcashTotal.toString() ?? 0)}
             </p>
           </div>
         </CardContent>

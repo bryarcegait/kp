@@ -7,6 +7,7 @@ import {
   Landmark,
   Receipt,
   ShoppingBag,
+  Smartphone,
   Wallet,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -50,6 +51,7 @@ type MonthlyRow = {
   netSales: number;
   posCash: number;
   posCard: number;
+  posGcash: number;
   posOther: number;
   receiptCount: number;
   paymentCount: number;
@@ -223,7 +225,7 @@ export default async function MonthlyReportPage({
     const reconciliation = calculateCashReconciliation({
       startingAmount: Number(cash?.startingAmount ?? 0),
       cashSales: Number(pos?.cashTotal ?? 0),
-      gcashSales: Number(pos?.cardTotal ?? 0),
+      gcashSales: Number(pos?.gcashTotal ?? 0),
       expenses: expensesTotal,
       adjustments: Number(cash?.adjustments ?? 0),
       cashOnHand: Number(cash?.cashOnHand ?? 0),
@@ -238,6 +240,7 @@ export default async function MonthlyReportPage({
       netSales: Number(pos?.netSales ?? 0),
       posCash: Number(pos?.cashTotal ?? 0),
       posCard: Number(pos?.cardTotal ?? 0),
+      posGcash: Number(pos?.gcashTotal ?? 0),
       posOther: Number(pos?.otherTotal ?? 0),
       receiptCount: Number(pos?.receiptCount ?? 0),
       paymentCount: Number(pos?.paymentCount ?? 0),
@@ -297,10 +300,11 @@ export default async function MonthlyReportPage({
         </form>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <ReportMetric title="Net Sales" value={formatCurrency(totalNetSales)} icon={ShoppingBag} />
         <ReportMetric title="POS Cash" value={formatCurrency(sumRows(rows, "posCash"))} icon={Banknote} />
         <ReportMetric title="POS Card" value={formatCurrency(sumRows(rows, "posCard"))} icon={CreditCard} />
+        <ReportMetric title="POS GCash" value={formatCurrency(sumRows(rows, "posGcash"))} icon={Smartphone} />
         <ReportMetric title="Expenses" value={formatCurrency(totalExpenses)} icon={Receipt} />
         <ReportMetric title="Ending Cash" value={formatCurrency(latestActualCash)} icon={Wallet} />
       </div>
@@ -323,6 +327,7 @@ export default async function MonthlyReportPage({
                   <TableHead>Net Sales</TableHead>
                   <TableHead>POS Cash</TableHead>
                   <TableHead>POS Card</TableHead>
+                  <TableHead>POS GCash</TableHead>
                   <TableHead>Other</TableHead>
                   <TableHead>Expenses</TableHead>
                   <TableHead>Start Cash</TableHead>
@@ -342,6 +347,7 @@ export default async function MonthlyReportPage({
                     <TableCell>{formatCurrency(row.netSales)}</TableCell>
                     <TableCell>{formatCurrency(row.posCash)}</TableCell>
                     <TableCell>{formatCurrency(row.posCard)}</TableCell>
+                    <TableCell>{formatCurrency(row.posGcash)}</TableCell>
                     <TableCell>{formatCurrency(row.posOther)}</TableCell>
                     <TableCell>{formatCurrency(row.expenses)}</TableCell>
                     <TableCell>{formatCurrency(row.startingCash)}</TableCell>

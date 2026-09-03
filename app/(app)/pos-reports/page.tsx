@@ -4,6 +4,7 @@ import {
   CreditCard,
   ReceiptText,
   ShoppingBag,
+  Smartphone,
   Truck,
   WalletCards,
 } from "lucide-react";
@@ -146,6 +147,12 @@ function ReportContent({ report }: { report: LoyverseTodayReport }) {
           value={formatCurrency(report.cardTotal)}
           description={`For ${report.date}`}
           icon={CreditCard}
+        />
+        <SummaryCard
+          title="GCash payments"
+          value={formatCurrency(report.gcashTotal)}
+          description={`For ${report.date}`}
+          icon={Smartphone}
         />
         <SummaryCard
           title="Other payments"

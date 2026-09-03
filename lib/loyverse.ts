@@ -79,7 +79,7 @@ type PaginatedResponse<TItem, TKey extends string> = Record<TKey, TItem[]> & {
 };
 
 export type LoyversePaymentSummary = {
-  type: "cash" | "card" | "other";
+  type: "cash" | "card" | "gcash" | "other";
   label: string;
   total: number;
   count: number;
@@ -185,7 +185,13 @@ function getPaymentAmount(payment: LoyversePayment, receipt: LoyverseReceipt) {
   return receipt.payments?.length === 1 ? receipt.total_money : 0;
 }
 
-function getPaymentKind(paymentType?: LoyversePaymentType, payment?: LoyversePayment) {
+function getPaymentKind(
+  paymentType?: LoyversePaymentType,
+  payment?: LoyversePayment
+): LoyversePaymentSummary["type"] {
+  const gcashPaymentTypeId = process.env.LOYVERSE_GCASH_PAYMENT_TYPE_ID;
+  if (gcashPaymentTypeId && payment?.payment_type_id === gcashPaymentTypeId) return "gcash";
+
   const type = paymentType?.type ?? payment?.type;
   if (type === "CASH") return "cash";
   if (type && CARD_PAYMENT_TYPES.has(type)) return "card";
@@ -265,13 +271,11 @@ export async function getLoyverseTodayReport(date: Date | string = new Date()) {
   ]);
 
   const paymentTypesById = new Map(paymentTypes.map((type) => [type.id, type]));
-  const gcashPaymentTypeId = process.env.LOYVERSE_GCASH_PAYMENT_TYPE_ID;
   const summaries = new Map<string, LoyversePaymentSummary>();
   let receiptCount = 0;
   let paymentCount = 0;
   let grossSales = 0;
   let deliveryFeeTotal = 0;
-  let gcashTotal = 0;
 
   for (const receipt of receipts) {
     if (receipt.cancelled_at) continue;
@@ -294,9 +298,6 @@ export async function getLoyverseTodayReport(date: Date | string = new Date()) {
       const label = paymentType?.name ?? payment.name ?? "Other";
       const key = `${kind}:${label}`;
       const amount = getPaymentAmount(payment, receipt) * factor;
-      if (gcashPaymentTypeId && payment.payment_type_id === gcashPaymentTypeId) {
-        gcashTotal += amount;
-      }
       const current =
         summaries.get(key) ??
         ({
@@ -330,7 +331,9 @@ export async function getLoyverseTodayReport(date: Date | string = new Date()) {
     otherTotal: payments
       .filter((payment) => payment.type === "other")
       .reduce((sum, payment) => sum + payment.total, 0),
-    gcashTotal,
+    gcashTotal: payments
+      .filter((payment) => payment.type === "gcash")
+      .reduce((sum, payment) => sum + payment.total, 0),
     grossSales,
     deliveryFeeTotal,
     netSales: grossSales - deliveryFeeTotal,
@@ -353,6 +356,7 @@ export async function saveLoyverseDailyReport(date: Date | string = new Date()) 
       cashTotal: report.cashTotal,
       cardTotal: report.cardTotal,
       otherTotal: report.otherTotal,
+      gcashTotal: report.gcashTotal,
       receiptCount: report.receiptCount,
       paymentCount: report.paymentCount,
       paymentBreakdown: report.payments,
@@ -366,6 +370,7 @@ export async function saveLoyverseDailyReport(date: Date | string = new Date()) 
       cashTotal: report.cashTotal,
       cardTotal: report.cardTotal,
       otherTotal: report.otherTotal,
+      gcashTotal: report.gcashTotal,
       receiptCount: report.receiptCount,
       paymentCount: report.paymentCount,
       paymentBreakdown: report.payments,
