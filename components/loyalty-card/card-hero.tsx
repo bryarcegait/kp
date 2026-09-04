@@ -131,9 +131,9 @@ function StampGrid({
         return (
           <div
             key={stampNumber}
-            className={`relative grid aspect-square place-items-center bg-[#fff4d5] ${
-              isInProgress ? "rounded-full" : "rounded-xl"
-            } ${isClaimable ? "ring-4 ring-[#ffd680]" : ""}`}
+            className={`relative grid aspect-square place-items-center rounded-full bg-[#fff4d5] ${
+              isClaimable ? "ring-4 ring-[#ffd680]" : ""
+            }`}
           >
             {isInProgress ? <StampProgressRing percent={progressPercent} /> : null}
             {isRewardSlot ? (
@@ -150,10 +150,14 @@ function StampGrid({
               <Image
                 src="/kanto-logo.png"
                 alt=""
-                width={72}
-                height={72}
-                className="size-6 object-contain sm:size-9"
+                width={96}
+                height={96}
+                className="size-11 object-contain sm:size-20"
               />
+            ) : isInProgress ? (
+              <span className="relative text-[10px] font-bold text-[#7a2f14] sm:text-sm">
+                ₱{Math.round(pendingStampAmount)}
+              </span>
             ) : null}
           </div>
         );
