@@ -166,6 +166,53 @@ function StampGrid({
   );
 }
 
+/**
+ * Once the card is completely filled (every slot in this cycle earned),
+ * any reward tier the customer qualified for along the way but never had
+ * claimed — most commonly because claiming a reward only resets the cycle
+ * once the FINAL tier is claimed, so an earlier tier can sit unclaimed
+ * all the way to a full card — gets called out here so it isn't missed
+ * once it's no longer sitting inline in the grid above.
+ */
+function UnclaimedRewardsCallout({
+  points,
+  rewardTiers,
+  claimedRewardStamps,
+}: {
+  points: number;
+  rewardTiers: RewardTier[];
+  claimedRewardStamps: number[];
+}) {
+  const maxStamps = rewardTiers.length > 0 ? Math.max(...rewardTiers.map((r) => r.stamps)) : 0;
+  const isCardCompleted = maxStamps > 0 && points >= maxStamps;
+  const claimedStamps = new Set(claimedRewardStamps);
+  const unclaimedRewards = rewardTiers
+    .map((reward, index) => ({ reward, index }))
+    .filter(({ reward }) => points >= reward.stamps && !claimedStamps.has(reward.stamps));
+
+  if (!isCardCompleted || unclaimedRewards.length === 0) return null;
+
+  return (
+    <div className="mt-3 grid gap-2 rounded-xl border-2 border-dashed border-[#ffd680] bg-white/10 p-3">
+      <p className="text-center text-xs font-semibold uppercase tracking-wide text-[#fff4d5]/90">
+        Unclaimed reward{unclaimedRewards.length === 1 ? "" : "s"} — show this at checkout
+      </p>
+      {unclaimedRewards.map(({ reward, index }) => {
+        const { Icon } = getRewardVisual(index, rewardTiers.length);
+        return (
+          <div
+            key={reward.stamps}
+            className="flex items-center gap-2 rounded-lg bg-[#fff4d5]/95 px-3 py-2 text-[#7a2f14]"
+          >
+            <Icon className="kp-gift-claimable size-5 shrink-0 text-[#c45a23]" />
+            <span className="text-sm font-semibold">{reward.name}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Explains what each reward-slot icon in the StampGrid above means. */
 function RewardLegend({ rewardTiers }: { rewardTiers: RewardTier[] }) {
   if (rewardTiers.length === 0) return null;
@@ -469,6 +516,11 @@ export function LoggedInCardHero({
           rewardTiers={card.rewardTiers}
           pendingStampAmount={card.pendingStampAmount}
           spendPerStamp={card.spendPerStamp}
+        />
+        <UnclaimedRewardsCallout
+          points={points}
+          rewardTiers={card.rewardTiers}
+          claimedRewardStamps={card.claimedRewardStamps}
         />
         <RewardLegend rewardTiers={card.rewardTiers} />
       </div>
