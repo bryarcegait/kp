@@ -64,11 +64,11 @@ type WingChoiceItem = {
 type DisplayItem = { kind: "product"; product: CustomerMenuProduct } | WingChoiceItem;
 
 function displayName(item: DisplayItem) {
-  return item.kind === "wingChoice" ? item.choice.label : item.product.name;
+  return item.kind === "wingChoice" ? (item.choice.label ?? item.noSideProduct.name) : item.product.name;
 }
 
 function displayCategory(item: DisplayItem) {
-  return item.kind === "wingChoice" ? item.choice.category : item.product.category;
+  return item.kind === "wingChoice" ? item.noSideProduct.category : item.product.category;
 }
 
 function displayIsAvailable(item: DisplayItem) {
@@ -78,7 +78,7 @@ function displayIsAvailable(item: DisplayItem) {
 }
 
 function displaySearchText(item: DisplayItem) {
-  if (item.kind === "wingChoice") return `${item.choice.label} ${item.choice.category}`.toLowerCase();
+  if (item.kind === "wingChoice") return `${displayName(item)} ${displayCategory(item)}`.toLowerCase();
   return `${item.product.name} ${item.product.category} ${item.product.description}`.toLowerCase();
 }
 
@@ -306,7 +306,7 @@ export function PublicMenuClient({
     const customizationLabel = [selectedFlavors.join(" / "), choice.supportsSides ? sideLabel : null]
       .filter(Boolean)
       .join(", ");
-    const name = `${choice.label} (${customizationLabel}${extraLabel})`;
+    const name = `${displayName(customizingChoice)} (${customizationLabel}${extraLabel})`;
 
     setOrderLines((previous) => {
       const existing = previous[lineKey];
@@ -687,7 +687,7 @@ export function PublicMenuClient({
       >
         <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>{customizingChoice?.choice.label ?? "Customize"}</DialogTitle>
+            <DialogTitle>{customizingChoice ? displayName(customizingChoice) : "Customize"}</DialogTitle>
           </DialogHeader>
 
           {customizingChoice ? (

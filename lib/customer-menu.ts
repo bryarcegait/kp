@@ -67,8 +67,12 @@ export type FriesFlavor = (typeof FRIES_FLAVOR_OPTIONS)[number];
 
 export type WingOrderChoice = {
   key: string;
-  label: string;
-  category: string;
+  // Only set for choices where neither the "Solo" nor "with Rice or Fries"
+  // SKU name alone is the right merged-card title. Everything else falls
+  // back to the underlying product's own name/category live, so renaming or
+  // re-categorizing a product in the Menu admin page is all that's needed —
+  // nothing here needs to be kept in sync by hand.
+  label?: string;
   noSideProductId: string;
   withSideProductId?: string;
   includedFlavorCount: number;
@@ -79,7 +83,6 @@ export const WING_ORDER_CHOICES: WingOrderChoice[] = [
   {
     key: "3pcs",
     label: "3 pcs Wings",
-    category: "Wings",
     noSideProductId: "wings-3pcs-solo",
     withSideProductId: "wings-3pcs-rice-fries",
     includedFlavorCount: 1,
@@ -88,7 +91,6 @@ export const WING_ORDER_CHOICES: WingOrderChoice[] = [
   {
     key: "4pcs",
     label: "4 pcs Wings",
-    category: "Wings",
     noSideProductId: "wings-4pcs-solo",
     withSideProductId: "wings-4pcs-rice-fries",
     includedFlavorCount: 1,
@@ -97,7 +99,6 @@ export const WING_ORDER_CHOICES: WingOrderChoice[] = [
   {
     key: "6pcs",
     label: "6 pcs Wings",
-    category: "Wings",
     noSideProductId: "wings-6pcs-solo",
     withSideProductId: "wings-6pcs-rice-fries",
     includedFlavorCount: 1,
@@ -106,7 +107,6 @@ export const WING_ORDER_CHOICES: WingOrderChoice[] = [
   {
     key: "8pcs",
     label: "8 pcs Wings",
-    category: "Wings",
     noSideProductId: "wings-8pcs-solo",
     withSideProductId: "wings-8pcs-rice-fries",
     includedFlavorCount: 2,
@@ -115,7 +115,6 @@ export const WING_ORDER_CHOICES: WingOrderChoice[] = [
   {
     key: "boneless",
     label: "Boneless Wings",
-    category: "Wings",
     noSideProductId: "boneless-wings-solo",
     withSideProductId: "boneless-wings-rice-fries",
     includedFlavorCount: 1,
@@ -123,56 +122,42 @@ export const WING_ORDER_CHOICES: WingOrderChoice[] = [
   },
   {
     key: "carbonara-2pcs-wings",
-    label: "Carbonara with 2 pcs Wings",
-    category: "Pasta",
     noSideProductId: "carbonara-2pcs-wings",
     includedFlavorCount: 1,
     supportsSides: false,
   },
   {
     key: "carbonara-4pcs-wings",
-    label: "Carbonara with 4 pcs Wings",
-    category: "Pasta",
     noSideProductId: "carbonara-4pcs-wings",
     includedFlavorCount: 1,
     supportsSides: false,
   },
   {
     key: "12pcs",
-    label: "12 pcs Barkada Box",
-    category: "Barkada Box",
     noSideProductId: "barkada-12pcs",
     includedFlavorCount: 2,
     supportsSides: false,
   },
   {
     key: "24pcs",
-    label: "24 pcs Barkada Box",
-    category: "Barkada Box",
     noSideProductId: "barkada-24pcs",
     includedFlavorCount: 4,
     supportsSides: false,
   },
   {
     key: "30pcs",
-    label: "30 pcs Barkada Box",
-    category: "Barkada Box",
     noSideProductId: "barkada-30pcs",
     includedFlavorCount: 5,
     supportsSides: false,
   },
   {
     key: "60pcs",
-    label: "60 pcs Wings Bilao",
-    category: "Bilao",
     noSideProductId: "bilao-60pcs",
     includedFlavorCount: 6,
     supportsSides: false,
   },
   {
     key: "90pcs",
-    label: "90 pcs Wings Bilao",
-    category: "Bilao",
     noSideProductId: "bilao-90pcs",
     includedFlavorCount: 6,
     supportsSides: false,
@@ -274,9 +259,9 @@ export const DEFAULT_MENU_PRODUCTS: DefaultMenuProduct[] = [
   product("wings-8pcs-rice-fries", "Wings", "8 pcs Wings with Rice or Fries", 264, WING_FLAVORS, 80),
   product("boneless-wings-solo", "Wings", "Boneless Wings Solo", 175, WING_FLAVORS, 90),
   product("boneless-wings-rice-fries", "Wings", "Boneless Wings with Rice or Fries", 147, WING_FLAVORS, 100),
-  product("barkada-12pcs", "Barkada Box", "12 pcs Barkada Box", 350, "Good for sharing. Choose up to 2 flavors.", 110),
-  product("barkada-24pcs", "Barkada Box", "24 pcs Barkada Box", 700, "Good for sharing. Choose up to 4 flavors.", 120),
-  product("barkada-30pcs", "Barkada Box", "30 pcs Barkada Box", 875, "Good for sharing. Choose up to 5 flavors.", 130),
+  product("barkada-12pcs", "Wings", "12 pcs", 350, "Good for sharing. Choose up to 2 flavors.", 110),
+  product("barkada-24pcs", "Bilao", "24 pcs Wings Bilao", 700, "Good for sharing. Choose up to 4 flavors.", 120),
+  product("barkada-30pcs", "Bilao", "30 pcs Wings Bilao", 875, "Good for sharing. Choose up to 5 flavors.", 130),
   product("bilao-60pcs", "Bilao", "60 pcs Wings Bilao", 1750, "Party-size wings. Choose up to 5 flavors.", 140),
   product("bilao-90pcs", "Bilao", "90 pcs Wings Bilao", 2650, "Party-size wings. Choose up to 5 flavors.", 150),
   product("fries", "Extras", "Fries", 80, "Available flavors: cheese, sour cream, or BBQ.", 160),
