@@ -2,7 +2,7 @@
 
 import crypto from "crypto";
 import { db } from "@/lib/db";
-import { getLoyaltyRewards, getNextLoyaltyReward } from "@/lib/loyalty";
+import { getLoyaltyRewards, getLoyaltySpendPerStamp, getNextLoyaltyReward } from "@/lib/loyalty";
 import { clearCustomerSession, getCustomerSession } from "@/lib/customer-auth";
 
 export type CustomerLoyaltyCard = {
@@ -15,6 +15,8 @@ export type CustomerLoyaltyCard = {
   nextRewardStamps: number | null;
   rewardTiers: { stamps: number; name: string }[];
   claimedRewardStamps: number[];
+  pendingStampAmount: number;
+  spendPerStamp: number;
   latestTransactions: {
     id: string;
     type: string;
@@ -31,7 +33,7 @@ function generateLoyaltyCode() {
 }
 
 async function getCustomerCard(customerId: string): Promise<CustomerLoyaltyCard> {
-  const [customer, rewardTiers] = await Promise.all([
+  const [customer, rewardTiers, spendPerStamp] = await Promise.all([
     db.customer.findUniqueOrThrow({
       where: { id: customerId },
       include: {
@@ -43,6 +45,7 @@ async function getCustomerCard(customerId: string): Promise<CustomerLoyaltyCard>
       },
     }),
     getLoyaltyRewards(),
+    getLoyaltySpendPerStamp(),
   ]);
 
   const claimedRewardIds = new Set(customer.loyaltyRewardClaims.map((claim) => claim.rewardId));
@@ -59,6 +62,8 @@ async function getCustomerCard(customerId: string): Promise<CustomerLoyaltyCard>
     claimedRewardStamps: rewardTiers
       .filter((reward) => claimedRewardIds.has(reward.id))
       .map((reward) => reward.stamps),
+    pendingStampAmount: Number(customer.pendingStampAmount),
+    spendPerStamp,
     latestTransactions: customer.loyaltyTransactions.map((transaction) => ({
       id: transaction.id,
       type: transaction.type,

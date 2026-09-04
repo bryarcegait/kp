@@ -45,24 +45,74 @@ function getRewardVisual(rewardIndex: number, totalRewards: number) {
 }
 
 /**
+ * A ring drawn as an SVG stroke around the "next" stamp slot, filling in
+ * clockwise from the top as the customer's carried-over spend (tracked
+ * server-side as pendingStampAmount) approaches the peso amount needed for
+ * one more stamp. Purely visual — the actual stamp only gets recorded once
+ * staff scan an order that pushes the running total past the threshold.
+ */
+function StampProgressRing({ percent }: { percent: number }) {
+  const radius = 42;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - percent / 100);
+
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      className="pointer-events-none absolute inset-0 size-full -rotate-90"
+      aria-hidden="true"
+    >
+      <circle cx="50" cy="50" r={radius} fill="none" stroke="rgba(122,47,20,0.15)" strokeWidth="8" />
+      <circle
+        cx="50"
+        cy="50"
+        r={radius}
+        fill="none"
+        stroke="#c45a23"
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+      />
+    </svg>
+  );
+}
+
+/**
  * Stamps grid for the "back" of the card. A slot's gift icon communicates
  * three states: not yet reached (dim), currently claimable — points already
  * cover it and it hasn't been claimed this cycle (bright + pulsing), or
  * claimed this cycle already (muted checkmark). Claiming the final tier
  * resets the stamp count and clears claims, so the grid starts a fresh
- * cycle rather than losing progress on every claim.
+ * cycle rather than losing progress on every claim. The very next slot to
+ * be earned also gets a circular progress ring showing how close the
+ * customer's carried-over spend is to the next stamp (e.g. ₱100 of ₱200 =
+ * halfway around) — unless the card is already full (every slot in this
+ * cycle earned, final reward awaiting redemption), in which case there's no
+ * slot left to attach the ring to until claiming resets the cycle, so it's
+ * intentionally hidden rather than shown somewhere misleading.
  */
 function StampGrid({
   points,
   claimedRewardStamps,
   rewardTiers,
+  pendingStampAmount,
+  spendPerStamp,
 }: {
   points: number;
   claimedRewardStamps: number[];
   rewardTiers: RewardTier[];
+  pendingStampAmount: number;
+  spendPerStamp: number;
 }) {
   const maxStamps = rewardTiers.length > 0 ? Math.max(...rewardTiers.map((r) => r.stamps)) : 10;
   const claimedStamps = new Set(claimedRewardStamps);
+  const nextStampNumber = points + 1;
+  const hasNextSlotInThisCycle = points < maxStamps;
+  const progressPercent =
+    hasNextSlotInThisCycle && spendPerStamp > 0
+      ? Math.min(100, Math.max(0, (pendingStampAmount / spendPerStamp) * 100))
+      : 0;
 
   return (
     <div className="grid grid-cols-5 gap-2 sm:gap-3">
@@ -73,6 +123,7 @@ function StampGrid({
         const isRewardSlot = rewardIndex !== -1;
         const isClaimed = isRewardSlot && claimedStamps.has(stampNumber);
         const isClaimable = isRewardSlot && !isClaimed && points >= stampNumber;
+        const isInProgress = !isEarned && stampNumber === nextStampNumber && progressPercent > 0;
         const { Icon: RewardIcon } = isRewardSlot
           ? getRewardVisual(rewardIndex, rewardTiers.length)
           : { Icon: Gift };
@@ -80,10 +131,11 @@ function StampGrid({
         return (
           <div
             key={stampNumber}
-            className={`grid aspect-square place-items-center rounded-xl bg-[#fff4d5] ${
-              isClaimable ? "ring-4 ring-[#ffd680]" : ""
-            }`}
+            className={`relative grid aspect-square place-items-center bg-[#fff4d5] ${
+              isInProgress ? "rounded-full" : "rounded-xl"
+            } ${isClaimable ? "ring-4 ring-[#ffd680]" : ""}`}
           >
+            {isInProgress ? <StampProgressRing percent={progressPercent} /> : null}
             {isRewardSlot ? (
               isClaimed ? (
                 <CheckCircle2 className="size-6 text-emerald-600/70 sm:size-9" />
@@ -321,7 +373,13 @@ export function LoggedOutCardHero({
     <div className={cardFace}>
       <CardHeaderRow />
       <div className="mt-5">
-        <StampGrid points={0} claimedRewardStamps={[]} rewardTiers={[]} />
+        <StampGrid
+          points={0}
+          claimedRewardStamps={[]}
+          rewardTiers={[]}
+          pendingStampAmount={0}
+          spendPerStamp={200}
+        />
       </div>
       <p className="mt-3 text-center text-sm leading-relaxed text-[#fff4d5]/90 sm:text-base">
         Log in to start collecting stamps every time you order — every ₱200 spent earns a
@@ -405,6 +463,8 @@ export function LoggedInCardHero({
           points={points}
           claimedRewardStamps={card.claimedRewardStamps}
           rewardTiers={card.rewardTiers}
+          pendingStampAmount={card.pendingStampAmount}
+          spendPerStamp={card.spendPerStamp}
         />
         <RewardLegend rewardTiers={card.rewardTiers} />
       </div>
