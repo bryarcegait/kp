@@ -6,6 +6,8 @@ export type CustomerMenuProduct = {
   price: number;
   imageSrc: string;
   isAvailable: boolean;
+  isBestSeller: boolean;
+  isSpicy: boolean;
 };
 
 export type DefaultMenuProduct = Omit<CustomerMenuProduct, "imageSrc"> & {
@@ -15,6 +17,198 @@ export type DefaultMenuProduct = Omit<CustomerMenuProduct, "imageSrc"> & {
 
 const WING_FLAVORS =
   "Flavors: Buffalo, Soy Honey Garlic, Cheesy Wings, Creamy Garlic Mushroom, Garlic Parmesan, Caramelized Patis, Teriyaki, Sriracha Garlic, Salted Egg, Lemon-Pepper, Spicy Korean Barbecue.";
+
+// --- Wings order customization ---
+// Lets a customer pick a side (rice/fries) and one or more flavors for wing
+// meals, barkada boxes, bilao trays, and the wings+pasta combos. Prices are
+// deliberately NOT duplicated here — the "Customize" dialog looks up the
+// live product price by id, so admin price edits in the Menu page are
+// always reflected instead of drifting out of sync with a hardcoded value.
+
+export const WING_FLAVOR_OPTIONS = [
+  "Plain",
+  "Buffalo",
+  "Soy Honey Garlic",
+  "Cheesy Wings",
+  "Spicy Cheesy Wings",
+  "Creamy Garlic Mushroom",
+  "Garlic Parmesan",
+  "Caramelized Patis",
+  "Teriyaki",
+  "Sriracha Garlic",
+  "Salted Egg",
+  "Lemon-Pepper",
+  "Spicy Korean Barbecue",
+] as const;
+
+export const BEST_SELLER_WING_FLAVORS = [
+  "Buffalo",
+  "Soy Honey Garlic",
+  "Cheesy Wings",
+  "Creamy Garlic Mushroom",
+] as const;
+
+export const SPICY_WING_FLAVORS = [
+  "Buffalo",
+  "Spicy Cheesy Wings",
+  "Sriracha Garlic",
+  "Spicy Korean Barbecue",
+] as const;
+
+export const EXTRA_WING_FLAVOR_PRICE = 10;
+
+export const WING_SIDE_OPTIONS = ["No side", "Java Rice", "Plain Rice", "Fries"] as const;
+
+export const FRIES_FLAVOR_OPTIONS = ["Plain", "Sour Cream", "Barbecue", "Cheese"] as const;
+
+export type WingFlavor = (typeof WING_FLAVOR_OPTIONS)[number];
+export type WingSide = (typeof WING_SIDE_OPTIONS)[number];
+export type FriesFlavor = (typeof FRIES_FLAVOR_OPTIONS)[number];
+
+export type WingOrderChoice = {
+  key: string;
+  label: string;
+  category: string;
+  noSideProductId: string;
+  withSideProductId?: string;
+  includedFlavorCount: number;
+  supportsSides: boolean;
+};
+
+export const WING_ORDER_CHOICES: WingOrderChoice[] = [
+  {
+    key: "3pcs",
+    label: "3 pcs Wings",
+    category: "Wings",
+    noSideProductId: "wings-3pcs-solo",
+    withSideProductId: "wings-3pcs-rice-fries",
+    includedFlavorCount: 1,
+    supportsSides: true,
+  },
+  {
+    key: "4pcs",
+    label: "4 pcs Wings",
+    category: "Wings",
+    noSideProductId: "wings-4pcs-solo",
+    withSideProductId: "wings-4pcs-rice-fries",
+    includedFlavorCount: 1,
+    supportsSides: true,
+  },
+  {
+    key: "6pcs",
+    label: "6 pcs Wings",
+    category: "Wings",
+    noSideProductId: "wings-6pcs-solo",
+    withSideProductId: "wings-6pcs-rice-fries",
+    includedFlavorCount: 1,
+    supportsSides: true,
+  },
+  {
+    key: "8pcs",
+    label: "8 pcs Wings",
+    category: "Wings",
+    noSideProductId: "wings-8pcs-solo",
+    withSideProductId: "wings-8pcs-rice-fries",
+    includedFlavorCount: 2,
+    supportsSides: true,
+  },
+  {
+    key: "boneless",
+    label: "Boneless Wings",
+    category: "Wings",
+    noSideProductId: "boneless-wings-solo",
+    withSideProductId: "boneless-wings-rice-fries",
+    includedFlavorCount: 1,
+    supportsSides: true,
+  },
+  {
+    key: "carbonara-2pcs-wings",
+    label: "Carbonara with 2 pcs Wings",
+    category: "Pasta",
+    noSideProductId: "carbonara-2pcs-wings",
+    includedFlavorCount: 1,
+    supportsSides: false,
+  },
+  {
+    key: "carbonara-4pcs-wings",
+    label: "Carbonara with 4 pcs Wings",
+    category: "Pasta",
+    noSideProductId: "carbonara-4pcs-wings",
+    includedFlavorCount: 1,
+    supportsSides: false,
+  },
+  {
+    key: "12pcs",
+    label: "12 pcs Barkada Box",
+    category: "Barkada Box",
+    noSideProductId: "barkada-12pcs",
+    includedFlavorCount: 2,
+    supportsSides: false,
+  },
+  {
+    key: "24pcs",
+    label: "24 pcs Barkada Box",
+    category: "Barkada Box",
+    noSideProductId: "barkada-24pcs",
+    includedFlavorCount: 4,
+    supportsSides: false,
+  },
+  {
+    key: "30pcs",
+    label: "30 pcs Barkada Box",
+    category: "Barkada Box",
+    noSideProductId: "barkada-30pcs",
+    includedFlavorCount: 5,
+    supportsSides: false,
+  },
+  {
+    key: "60pcs",
+    label: "60 pcs Wings Bilao",
+    category: "Bilao",
+    noSideProductId: "bilao-60pcs",
+    includedFlavorCount: 6,
+    supportsSides: false,
+  },
+  {
+    key: "90pcs",
+    label: "90 pcs Wings Bilao",
+    category: "Bilao",
+    noSideProductId: "bilao-90pcs",
+    includedFlavorCount: 6,
+    supportsSides: false,
+  },
+];
+
+export function getWingOrderChoiceByProductId(productId: string) {
+  return WING_ORDER_CHOICES.find(
+    (choice) => choice.noSideProductId === productId || choice.withSideProductId === productId
+  );
+}
+
+export function getExtraWingFlavorCount(
+  choice: WingOrderChoice,
+  wingFlavors: readonly WingFlavor[]
+) {
+  const chargeableFlavorCount = new Set(
+    wingFlavors.filter((flavor) => flavor !== "Plain")
+  ).size;
+  return Math.max(0, chargeableFlavorCount - choice.includedFlavorCount);
+}
+
+export function getWingExtraFlavorCharge(
+  choice: WingOrderChoice,
+  wingFlavors: readonly WingFlavor[]
+) {
+  return getExtraWingFlavorCount(choice, wingFlavors) * EXTRA_WING_FLAVOR_PRICE;
+}
+
+export function isBestSellerWingFlavor(flavor: WingFlavor) {
+  return (BEST_SELLER_WING_FLAVORS as readonly string[]).includes(flavor);
+}
+
+export function isSpicyWingFlavor(flavor: WingFlavor) {
+  return (SPICY_WING_FLAVORS as readonly string[]).includes(flavor);
+}
 
 export const CUSTOMER_MENU_CATEGORIES = [
   "Wings",
@@ -63,6 +257,8 @@ function product(
     description,
     imageUrl,
     isAvailable: true,
+    isBestSeller: false,
+    isSpicy: false,
     sortOrder,
   };
 }

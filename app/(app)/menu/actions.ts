@@ -18,6 +18,8 @@ const menuProductSchema = z.object({
   price: z.coerce.number().min(0, "Price cannot be negative").max(999_999_999),
   sortOrder: z.coerce.number().int().min(0).max(999_999),
   isAvailable: z.enum(["true", "false"]),
+  isBestSeller: z.enum(["true", "false"]),
+  isSpicy: z.enum(["true", "false"]),
 });
 
 export type MenuProductFormState = {
@@ -57,6 +59,8 @@ export async function upsertMenuProduct(
     price: formData.get("price"),
     sortOrder: formData.get("sortOrder") ?? "0",
     isAvailable: formData.get("isAvailable") ?? "true",
+    isBestSeller: formData.get("isBestSeller") ?? "false",
+    isSpicy: formData.get("isSpicy") ?? "false",
   });
 
   if (!parsed.success) {
@@ -95,6 +99,8 @@ export async function upsertMenuProduct(
     price: parsed.data.price,
     sortOrder: parsed.data.sortOrder,
     isAvailable: parsed.data.isAvailable === "true",
+    isBestSeller: parsed.data.isBestSeller === "true",
+    isSpicy: parsed.data.isSpicy === "true",
     ...(imageUrl ? { imageUrl } : {}),
   };
 

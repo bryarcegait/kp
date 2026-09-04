@@ -18,6 +18,8 @@ export async function GET() {
       price: Number(product.price),
       imageSrc: product.imageUrl ?? getCategoryImageFallback(product.category),
       isAvailable: product.isAvailable,
+      isBestSeller: product.isBestSeller,
+      isSpicy: product.isSpicy,
     })),
   });
 }

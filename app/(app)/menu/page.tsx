@@ -21,6 +21,8 @@ export default async function MenuPage() {
     price: Number(product.price).toFixed(2),
     imageUrl: product.imageUrl,
     isAvailable: product.isAvailable,
+    isBestSeller: product.isBestSeller,
+    isSpicy: product.isSpicy,
     sortOrder: product.sortOrder,
   }));
 

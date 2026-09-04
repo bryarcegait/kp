@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Flame, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import {
   deleteMenuProduct,
   setMenuProductAvailability,
@@ -151,7 +151,19 @@ export function MenuProductsClient({ products }: { products: MenuProductRow[] })
                       className="size-14 shrink-0 rounded-lg border bg-muted object-contain p-1"
                     />
                     <div className="min-w-0">
-                      <p className="font-semibold">{product.name}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="font-semibold">{product.name}</p>
+                        {product.isBestSeller ? (
+                          <Badge className="gap-1 bg-amber-100 text-amber-800 hover:bg-amber-100">
+                            <Star className="size-3" /> Best Seller
+                          </Badge>
+                        ) : null}
+                        {product.isSpicy ? (
+                          <Badge className="gap-1 bg-red-100 text-red-700 hover:bg-red-100">
+                            <Flame className="size-3" /> Spicy
+                          </Badge>
+                        ) : null}
+                      </div>
                       {product.description ? (
                         <p className="line-clamp-2 text-sm text-muted-foreground">
                           {product.description}
