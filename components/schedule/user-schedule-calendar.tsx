@@ -28,6 +28,13 @@ type CalendarDay = {
   inMonth: boolean;
 };
 
+type AttendanceDayLog = {
+  timeIn: string | null;
+  timeOut: string | null;
+  lateMinutes: number;
+  undertimeMinutes: number;
+};
+
 type ScheduleActionStatus = "added" | "removed";
 
 function formatInputDate(date: Date) {
@@ -87,14 +94,21 @@ function sortEmployees(employees: ScheduledEmployee[]) {
   return [...employees].sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
 
+function minutesDetailLabel(minutes: number) {
+  if (minutes <= 0) return null;
+  return `${minutes} min${minutes === 1 ? "" : "s"}`;
+}
+
 export function UserScheduleCalendar({
   month,
   currentUser,
   scheduleByDate,
+  attendanceByDate,
 }: {
   month: string;
   currentUser: ScheduledEmployee;
   scheduleByDate: Record<string, ScheduledEmployee[]>;
+  attendanceByDate: Record<string, AttendanceDayLog>;
 }) {
   const days = useMemo(() => buildCalendarDays(month), [month]);
   const today = formatInputDate(new Date());
@@ -271,6 +285,9 @@ export function UserScheduleCalendar({
                 const isAnimated = lastResult?.date === day.key;
                 const isWarning = employees.length > 0 && employees.length < 5;
                 const isPast = day.key < today;
+                const attendance = attendanceByDate[day.key];
+                const lateLabel = attendance ? minutesDetailLabel(attendance.lateMinutes) : null;
+                const undertimeLabel = attendance ? minutesDetailLabel(attendance.undertimeMinutes) : null;
 
                 return (
                   <button
@@ -321,6 +338,15 @@ export function UserScheduleCalendar({
                         <Loader2 className="size-3 animate-spin" />
                         {savingLabel}
                       </span>
+                    ) : null}
+
+                    {attendance ? (
+                      <div className="mt-3 grid gap-1 rounded-md border bg-background/85 p-2 text-xs text-foreground shadow-sm">
+                        <span>IN: {attendance.timeIn ?? "-"}</span>
+                        <span>OUT: {attendance.timeOut ?? "-"}</span>
+                        {lateLabel ? <span className="font-semibold text-destructive">Late: {lateLabel}</span> : null}
+                        {undertimeLabel ? <span className="font-semibold text-amber-700 dark:text-amber-300">UT: {undertimeLabel}</span> : null}
+                      </div>
                     ) : null}
 
                     <div className="mt-3 flex flex-1 flex-col gap-1.5">

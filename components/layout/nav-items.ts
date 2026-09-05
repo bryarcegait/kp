@@ -12,6 +12,7 @@ import {
   Gift,
   ChartNoAxesCombined,
   Utensils,
+  BriefcaseBusiness,
   type LucideIcon,
 } from "lucide-react";
 
@@ -40,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { title: "Loyalty", href: "/loyalty", icon: Gift, permission: "loyalty.manage" },
   { title: "My Calendar", href: "/my-calendar", icon: CalendarCheck },
+  { title: "Payroll", href: "/payroll", icon: BriefcaseBusiness, permission: "payroll.view" },
   {
     title: "Schedule",
     href: "/schedule",

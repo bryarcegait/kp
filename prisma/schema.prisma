@@ -68,15 +68,18 @@ model User {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  role                 Role                 @relation(fields: [roleId], references: [id])
+  role                 Role                    @relation(fields: [roleId], references: [id])
   expenses             Expense[]
-  cashSummariesCreated DailyCashSummary[]   @relation("CashSummaryCreatedBy")
-  cashSummariesUpdated DailyCashSummary[]   @relation("CashSummaryUpdatedBy")
+  cashSummariesCreated DailyCashSummary[]      @relation("CashSummaryCreatedBy")
+  cashSummariesUpdated DailyCashSummary[]      @relation("CashSummaryUpdatedBy")
   schedules            EmployeeSchedule[]
   bankEntries          BankEntry[]
   gcashEntries         GcashEntry[]
   loyaltyTransactions  LoyaltyTransaction[]
-  loyverseOrdersSent   CustomerOrder[]      @relation("LoyverseOrderSentBy")
+  loyverseOrdersSent   CustomerOrder[]         @relation("LoyverseOrderSentBy")
+  payrollProfile       EmployeePayrollProfile?
+  attendanceLogs       AttendanceLog[]         @relation("AttendanceUser")
+  attendanceImports    AttendanceLog[]         @relation("AttendanceImportedBy")
 
   @@index([roleId])
   @@map("users")
@@ -94,6 +97,43 @@ model EmployeeSchedule {
   @@unique([scheduleDate, userId])
   @@index([userId])
   @@map("employee_schedules")
+}
+
+model EmployeePayrollProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  dailyRate            Decimal  @default(0) @db.Decimal(12, 2)
+  scheduleStartMinutes Int      @default(600)
+  scheduleEndMinutes   Int      @default(1200)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("employee_payroll_profiles")
+}
+
+model AttendanceLog {
+  id               String    @id @default(cuid())
+  userId           String
+  attendanceDate   DateTime  @db.Date
+  timeIn           DateTime?
+  timeOut          DateTime?
+  lateMinutes      Int       @default(0)
+  undertimeMinutes Int       @default(0)
+  sourceFile       String?   @db.Text
+  rawEmployeeCode  String?
+  importedById     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user       User  @relation("AttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
+  importedBy User? @relation("AttendanceImportedBy", fields: [importedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, attendanceDate])
+  @@index([attendanceDate])
+  @@index([importedById])
+  @@map("attendance_logs")
 }
 
 model Expense {
@@ -354,18 +394,18 @@ model LoyaltyTransaction {
 }
 
 model MenuProduct {
-  id          String   @id @default(cuid())
-  name        String
-  category    String
-  description String?  @db.Text
-  price       Decimal  @db.Decimal(12, 2)
-  imageUrl    String?  @db.Text
-  isAvailable Boolean  @default(true)
-  isBestSeller Boolean @default(false)
-  isSpicy     Boolean  @default(false)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  category     String
+  description  String?  @db.Text
+  price        Decimal  @db.Decimal(12, 2)
+  imageUrl     String?  @db.Text
+  isAvailable  Boolean  @default(true)
+  isBestSeller Boolean  @default(false)
+  isSpicy      Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([category])
   @@index([isAvailable])

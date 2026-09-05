@@ -3,6 +3,7 @@ import { UserScheduleCalendar } from "@/components/schedule/user-schedule-calend
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatDateOnly, formatInputDate, getDateOnlyRange } from "@/lib/dates";
+import { dateTimeToMinutes, minutesToTimeLabel } from "@/lib/timekeeping";
 
 function parseMonth(value: unknown) {
   if (typeof value === "string" && /^\d{4}-\d{2}$/.test(value)) {
@@ -47,7 +48,7 @@ export default async function MyCalendarPage({
   );
   const { start, end } = getCalendarRange(month);
 
-  const [currentUser, schedules] = await Promise.all([
+  const [currentUser, schedules, attendanceLogs] = await Promise.all([
     db.user.findUnique({
       where: { id: session.user.id },
       select: { id: true, fullName: true, isActive: true },
@@ -69,6 +70,16 @@ export default async function MyCalendarPage({
       },
       orderBy: [{ scheduleDate: "asc" }, { user: { fullName: "asc" } }],
     }),
+    db.attendanceLog.findMany({
+      where: {
+        userId: session.user.id,
+        attendanceDate: {
+          gte: start,
+          lt: end,
+        },
+      },
+      orderBy: { attendanceDate: "asc" },
+    }),
   ]);
 
   if (!currentUser?.isActive) redirect("/login");
@@ -81,6 +92,26 @@ export default async function MyCalendarPage({
       ...(map[dateKey] ?? []),
       { id: item.user.id, fullName: item.user.fullName },
     ];
+    return map;
+  }, {});
+
+  const attendanceByDate = attendanceLogs.reduce<
+    Record<
+      string,
+      {
+        timeIn: string | null;
+        timeOut: string | null;
+        lateMinutes: number;
+        undertimeMinutes: number;
+      }
+    >
+  >((map, item) => {
+    map[formatDateOnly(item.attendanceDate)] = {
+      timeIn: minutesToTimeLabel(dateTimeToMinutes(item.timeIn)),
+      timeOut: minutesToTimeLabel(dateTimeToMinutes(item.timeOut)),
+      lateMinutes: item.lateMinutes,
+      undertimeMinutes: item.undertimeMinutes,
+    };
     return map;
   }, {});
 
@@ -101,6 +132,7 @@ export default async function MyCalendarPage({
           fullName: currentUser.fullName,
         }}
         scheduleByDate={scheduleByDate}
+        attendanceByDate={attendanceByDate}
       />
     </div>
   );
