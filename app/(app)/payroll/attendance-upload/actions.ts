@@ -122,7 +122,10 @@ export async function uploadAttendance(
     );
   } catch (error) {
     console.error("uploadAttendance transaction failed:", error);
-    return { error: "Couldn't save the attendance logs — please try again." };
+    // TEMPORARY: surfacing the raw message to diagnose a prod-only failure
+    // that doesn't reproduce locally. Revert to a generic message once found.
+    const detail = error instanceof Error ? error.message : String(error);
+    return { error: `Couldn't save the attendance logs — please try again. (${detail})` };
   }
 
   revalidatePath("/payroll/attendance-upload");
