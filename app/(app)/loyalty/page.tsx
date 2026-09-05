@@ -1,8 +1,12 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { canManageLoyalty, canAwardLoyalty } from "@/lib/loyalty-access";
-import { normalizePhoneNumber, getLoyaltyRewards, getLoyaltySpendPerStamp } from "@/lib/loyalty";
+import {
+  canAwardLoyalty,
+  canManageLoyalty,
+  canViewLoyaltyCustomers,
+} from "@/lib/loyalty-access";
+import { getLoyaltyRewards, getLoyaltySpendPerStamp } from "@/lib/loyalty";
 import {
   LoyaltyClient,
   type LoyaltyCustomerRow,
@@ -12,41 +16,37 @@ import {
 export default async function LoyaltyPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string | string[] }>;
+  searchParams?: Promise<{ q?: string | string[]; tab?: string | string[] }>;
 }) {
   const session = await auth();
   if (!session) redirect("/login");
+
   const canManage = canManageLoyalty(session.user);
   const canAward = canAwardLoyalty(session.user);
-  if (!canAward) redirect("/dashboard");
+  const canViewCustomers = canViewLoyaltyCustomers(session.user);
+  if (!canAward && !canViewCustomers) redirect("/dashboard");
 
   const params = await searchParams;
   const query = Array.isArray(params?.q) ? params.q[0] : params?.q ?? "";
   const trimmedQuery = query.trim();
-  const normalizedPhoneQuery = normalizePhoneNumber(trimmedQuery);
-  const where =
-    trimmedQuery.length > 0
-      ? {
-          OR: [
-            { displayName: { contains: trimmedQuery } },
-            { email: { contains: trimmedQuery } },
-            ...(normalizedPhoneQuery
-              ? [{ phoneNumber: { contains: normalizedPhoneQuery } }]
-              : []),
-          ],
-        }
-      : {};
+  const requestedTab = Array.isArray(params?.tab) ? params.tab[0] : params?.tab;
+  const defaultTab =
+    requestedTab === "settings" && canManage
+      ? "settings"
+      : (requestedTab === "customers" || trimmedQuery.length > 0) && canViewCustomers
+        ? "customers"
+        : canAward
+          ? "scan"
+          : "customers";
 
   const [customers, transactions, rewardTiers, spendPerStamp] = await Promise.all([
-    canManage
+    canViewCustomers
       ? db.customer.findMany({
-          where,
           include: { _count: { select: { orders: true } } },
           orderBy: [{ loyaltyPoints: "desc" }, { updatedAt: "desc" }],
-          take: 100,
         })
       : Promise.resolve([]),
-    canManage
+    canViewCustomers
       ? db.loyaltyTransaction.findMany({
           include: {
             customer: { select: { displayName: true, email: true } },
@@ -54,7 +54,7 @@ export default async function LoyaltyPage({
             createdBy: { select: { fullName: true } },
           },
           orderBy: { createdAt: "desc" },
-          take: 80,
+          take: 120,
         })
       : Promise.resolve([]),
     getLoyaltyRewards(),
@@ -69,6 +69,7 @@ export default async function LoyaltyPage({
     loyaltyPoints: customer.loyaltyPoints,
     lifetimePoints: customer.lifetimePoints,
     redeemedPoints: customer.redeemedPoints,
+    pendingStampAmount: Number(customer.pendingStampAmount),
     orderCount: customer._count.orders,
     lastOrderAt: customer.lastOrderAt?.toISOString() ?? null,
     createdAt: customer.createdAt.toISOString(),
@@ -103,6 +104,9 @@ export default async function LoyaltyPage({
         rewardTiers={rewardTiers}
         spendPerStamp={spendPerStamp}
         canManage={canManage}
+        canAward={canAward}
+        canViewCustomers={canViewCustomers}
+        defaultTab={defaultTab}
       />
     </div>
   );

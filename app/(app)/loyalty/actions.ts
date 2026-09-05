@@ -16,8 +16,8 @@ import {
 
 const adjustSchema = z.object({
   customerId: z.string().min(1),
-  points: z.coerce.number().int().min(-100).max(100).refine((value) => value !== 0, {
-    message: "Adjustment cannot be zero",
+  amount: z.coerce.number().min(-200000).max(200000).refine((value) => value !== 0, {
+    message: "Adjustment amount cannot be zero",
   }),
   remarks: z.string().trim().max(500).optional().or(z.literal("")),
 });
@@ -86,7 +86,7 @@ export async function adjustLoyaltyPoints(
 
   const parsed = adjustSchema.safeParse({
     customerId: formData.get("customerId"),
-    points: formData.get("points"),
+    amount: formData.get("amount"),
     remarks: formData.get("remarks") ?? "",
   });
 
@@ -94,22 +94,31 @@ export async function adjustLoyaltyPoints(
     return { error: parsed.error.issues[0]?.message ?? "Invalid adjustment." };
   }
 
-  const { customerId, points, remarks } = parsed.data;
+  const { customerId, amount, remarks } = parsed.data;
+  const spendPerStamp = await getLoyaltySpendPerStamp();
   const result = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM customers WHERE id = ${customerId} FOR UPDATE`;
     const customer = await tx.customer.findUnique({ where: { id: customerId } });
     if (!customer) return { error: "Customer not found." } as const;
 
-    const nextBalance = customer.loyaltyPoints + points;
-    if (nextBalance < 0) {
-      return { error: "Customer does not have enough stamps for this adjustment." } as const;
+    const currentCredit =
+      customer.loyaltyPoints * spendPerStamp + Number(customer.pendingStampAmount);
+    const nextCredit = Math.round((currentCredit + amount) * 100) / 100;
+    if (nextCredit < 0) {
+      return { error: "Adjustment amount is greater than the customer's loyalty balance." } as const;
     }
+
+    const nextBalance = Math.floor(nextCredit / spendPerStamp);
+    const nextPendingAmount =
+      Math.round((nextCredit - nextBalance * spendPerStamp) * 100) / 100;
+    const pointDelta = nextBalance - customer.loyaltyPoints;
 
     const updated = await tx.customer.update({
       where: { id: customerId },
       data: {
         loyaltyPoints: nextBalance,
-        ...(points > 0 ? { lifetimePoints: { increment: points } } : {}),
+        pendingStampAmount: nextPendingAmount,
+        ...(pointDelta > 0 ? { lifetimePoints: { increment: pointDelta } } : {}),
       },
     });
 
@@ -117,20 +126,21 @@ export async function adjustLoyaltyPoints(
       data: {
         customerId,
         type: "adjustment",
-        points,
+        points: pointDelta,
         balanceAfter: updated.loyaltyPoints,
-        remarks: remarks || "Manual loyalty adjustment.",
+        remarks:
+          remarks ||
+          `Manual amount adjustment of ₱${amount.toFixed(2)} (${pointDelta >= 0 ? "+" : ""}${pointDelta} stamp${Math.abs(pointDelta) === 1 ? "" : "s"}).`,
         createdById: guard.session.user.id,
       },
     });
 
-    return { success: "Loyalty stamps adjusted." } as const;
+    return { success: "Loyalty amount adjusted." } as const;
   });
 
   revalidateLoyalty();
   return result;
 }
-
 export async function redeemLoyaltyReward(
   _prevState: LoyaltyFormState,
   formData: FormData

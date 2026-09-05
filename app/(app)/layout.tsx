@@ -12,7 +12,7 @@ import { hasPermission } from "@/lib/permissions";
 import { canViewCashSummary } from "@/lib/cash-summary-access";
 import { canViewSchedule } from "@/lib/schedule-access";
 import { canViewBank } from "@/lib/bank-access";
-import { canAwardLoyalty } from "@/lib/loyalty-access";
+import { canAwardLoyalty, canViewLoyaltyCustomers } from "@/lib/loyalty-access";
 import { canViewMonthlyReport } from "@/lib/monthly-report-access";
 import { canViewPayroll } from "@/lib/payroll-access";
 
@@ -40,7 +40,9 @@ export default async function AppLayout({
     if (item.href === "/cash-summary") return canViewCashSummary(session?.user);
     if (item.href === "/bank") return canViewBank(session?.user);
     if (item.href === "/monthly-report") return canViewMonthlyReport(session?.user);
-    if (item.href === "/loyalty") return canAwardLoyalty(session?.user);
+    if (item.href === "/loyalty") {
+      return canAwardLoyalty(session?.user) || canViewLoyaltyCustomers(session?.user);
+    }
     if (item.href === "/schedule") return canViewSchedule(session?.user);
     if (item.href === "/payroll") return canViewPayroll(session?.user);
     return !item.permission || hasPermission(permissions, item.permission);
