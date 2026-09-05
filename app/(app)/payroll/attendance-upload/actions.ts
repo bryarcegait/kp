@@ -118,14 +118,15 @@ export async function uploadAttendance(
           update: item,
           create: item,
         })
-      )
+      ),
+      // The default 5s timeout is tuned for a handful of writes; a full
+      // biometric report can carry many rows, and production's network
+      // latency to the database is higher than a local dev connection.
+      { timeout: 30_000 }
     );
   } catch (error) {
     console.error("uploadAttendance transaction failed:", error);
-    // TEMPORARY: surfacing the raw message to diagnose a prod-only failure
-    // that doesn't reproduce locally. Revert to a generic message once found.
-    const detail = error instanceof Error ? error.message : String(error);
-    return { error: `Couldn't save the attendance logs — please try again. (${detail})` };
+    return { error: "Couldn't save the attendance logs — please try again." };
   }
 
   revalidatePath("/payroll/attendance-upload");
