@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Upload } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   uploadAttendance,
@@ -50,6 +50,16 @@ export function AttendanceUploadClient({ canManage }: { canManage: boolean }) {
         </p>
       </div>
 
+      {isPending ? (
+        <div className="flex items-center gap-3 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+          <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
+          <span>
+            Reading the file and matching employees, then saving each day&apos;s logs — this can
+            take up to 10-15 seconds for a full report. Please don&apos;t close this page.
+          </span>
+        </div>
+      ) : null}
+
       {state.details && state.details.length > 0 ? (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
           {state.details.map((detail) => (
@@ -59,7 +69,7 @@ export function AttendanceUploadClient({ canManage }: { canManage: boolean }) {
       ) : null}
 
       <Button type="submit" className="w-fit" disabled={isPending}>
-        <Upload className="size-4" />
+        {isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
         {isPending ? "Uploading..." : "Upload Attendance"}
       </Button>
     </form>

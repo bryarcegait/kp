@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AttendanceUploadClient } from "@/components/payroll/attendance-upload-client";
 import { PayrollSubnav } from "@/components/payroll/payroll-subnav";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { auth } from "@/lib/auth";
@@ -9,18 +12,33 @@ import { formatDateOnly } from "@/lib/dates";
 import { canManagePayroll, canViewPayroll } from "@/lib/payroll-access";
 import { dateTimeToMinutes, minutesToTimeLabel } from "@/lib/timekeeping";
 
+const LOGS_PER_PAGE = 20;
+
 function minutesLabel(minutes: number) {
   if (minutes <= 0) return "-";
   return `${minutes} min${minutes === 1 ? "" : "s"}`;
 }
 
-export default async function AttendanceUploadPage() {
+export default async function AttendanceUploadPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ page?: string }>;
+}) {
   const session = await auth();
   if (!session) redirect("/login");
   if (!canViewPayroll(session.user)) redirect("/dashboard");
 
+  const params = await searchParams;
+  const requestedPage = Number(params?.page);
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? Math.floor(requestedPage) : 1;
+
+  const totalLogs = await db.attendanceLog.count();
+  const totalPages = Math.max(1, Math.ceil(totalLogs / LOGS_PER_PAGE));
+  const page = Math.min(currentPage, totalPages);
+
   const logs = await db.attendanceLog.findMany({
-    take: 50,
+    skip: (page - 1) * LOGS_PER_PAGE,
+    take: LOGS_PER_PAGE,
     include: {
       user: { select: { fullName: true, username: true } },
       importedBy: { select: { fullName: true } },
@@ -94,6 +112,35 @@ export default async function AttendanceUploadPage() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 text-sm text-muted-foreground">
+            <span>
+              Page {page} of {totalPages} · {totalLogs} log{totalLogs === 1 ? "" : "s"}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline" size="sm" disabled={page <= 1}>
+                <Link
+                  href={`/payroll/attendance-upload?page=${page - 1}`}
+                  aria-disabled={page <= 1}
+                  tabIndex={page <= 1 ? -1 : undefined}
+                  className={page <= 1 ? "pointer-events-none opacity-50" : undefined}
+                >
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" disabled={page >= totalPages}>
+                <Link
+                  href={`/payroll/attendance-upload?page=${page + 1}`}
+                  aria-disabled={page >= totalPages}
+                  tabIndex={page >= totalPages ? -1 : undefined}
+                  className={page >= totalPages ? "pointer-events-none opacity-50" : undefined}
+                >
+                  Next
+                  <ChevronRight className="size-4" />
+                </Link>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

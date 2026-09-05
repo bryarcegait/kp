@@ -80,6 +80,8 @@ model User {
   payrollProfile       EmployeePayrollProfile?
   attendanceLogs       AttendanceLog[]         @relation("AttendanceUser")
   attendanceImports    AttendanceLog[]         @relation("AttendanceImportedBy")
+  payrollAdvances      PayrollAdvance[]        @relation("PayrollAdvanceUser")
+  payrollAdvancesGiven PayrollAdvance[]        @relation("PayrollAdvanceCreatedBy")
 
   @@index([roleId])
   @@map("users")
@@ -134,6 +136,44 @@ model AttendanceLog {
   @@index([attendanceDate])
   @@index([importedById])
   @@map("attendance_logs")
+}
+
+model Holiday {
+  id         String   @id @default(cuid())
+  date       DateTime @unique @db.Date
+  name       String
+  // "regular" (100% if unworked, 200% if worked) or "special" (0 if
+  // unworked, 130% if worked) per DOLE rules.
+  type       String
+  // Worked-day pay multiplier, e.g. 2.00 for a regular holiday, 1.30 for a
+  // special one — stored per-row (not derived from type) so an individual
+  // holiday's rate can be overridden.
+  multiplier Decimal  @default(1) @db.Decimal(4, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([date])
+  @@map("holidays")
+}
+
+model PayrollAdvance {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Decimal  @db.Decimal(12, 2)
+  payoutDate  DateTime @db.Date
+  // The Sunday that starts the pay week (Sun-Sat) this advance is charged
+  // against, so it nets off that week's earned total at Saturday close.
+  weekStart   DateTime @db.Date
+  remarks     String?  @db.Text
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  user      User  @relation("PayrollAdvanceUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("PayrollAdvanceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([userId, weekStart])
+  @@index([createdById])
+  @@map("payroll_advances")
 }
 
 model Expense {

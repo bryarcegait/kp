@@ -5,6 +5,7 @@ const PAYROLL_TABS = [
   { title: "Employee Rates", href: "/payroll/employee-rates" },
   { title: "Attendance Upload", href: "/payroll/attendance-upload" },
   { title: "Employee Earnings", href: "/payroll/employee-earnings" },
+  { title: "Holidays", href: "/payroll/holidays" },
 ];
 
 export function PayrollSubnav({ active }: { active: string }) {
