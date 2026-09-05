@@ -1,10 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Save, Trash2 } from "lucide-react";
+import { Download, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   deleteHoliday,
+  syncHolidaysFromApi,
   upsertHoliday,
   type HolidayFormState,
 } from "@/app/(app)/payroll/holidays/actions";
@@ -52,6 +53,43 @@ function DeleteHolidayButton({ id, canManage }: { id: string; canManage: boolean
   );
 }
 
+function SyncFromApiForm() {
+  const [state, action, isPending] = useActionState(syncHolidaysFromApi, initialState);
+  useFormToast(state, isPending);
+  const currentYear = new Date().getFullYear();
+
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/30 p-3">
+      <div className="grid gap-1.5">
+        <Label htmlFor="sync-year" className="text-xs">
+          Pull official PH holidays for year
+        </Label>
+        <select
+          id="sync-year"
+          name="year"
+          defaultValue={currentYear}
+          className="flex h-9 w-28 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {[currentYear - 1, currentYear, currentYear + 1, currentYear + 2].map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Button type="submit" variant="outline" disabled={isPending}>
+        <Download className="size-4" />
+        {isPending ? "Fetching..." : "Sync from API"}
+      </Button>
+      <p className="w-full text-xs text-muted-foreground">
+        Pulls from date.nager.at — only adds dates not already on your calendar, and guesses
+        Regular vs Special based on the holiday name, so double-check new entries below. Movable
+        dates like Eid are only accurate once officially proclaimed for that year.
+      </p>
+    </form>
+  );
+}
+
 export function HolidaysClient({
   holidays,
   canManage,
@@ -64,6 +102,7 @@ export function HolidaysClient({
 
   return (
     <div className="grid gap-6">
+      {canManage ? <SyncFromApiForm /> : null}
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>

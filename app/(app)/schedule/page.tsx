@@ -50,7 +50,7 @@ export default async function SchedulePage({
   const { start, end } = getCalendarRange(month);
   const canManage = canManageSchedule(session.user);
 
-  const [users, schedules] = await Promise.all([
+  const [users, schedules, holidays] = await Promise.all([
     db.user.findMany({
       where: { isActive: true },
       select: {
@@ -73,6 +73,9 @@ export default async function SchedulePage({
       },
       orderBy: [{ scheduleDate: "asc" }, { user: { fullName: "asc" } }],
     }),
+    db.holiday.findMany({
+      where: { date: { gte: start, lt: end } },
+    }),
   ]);
 
   const scheduleByDate = schedules.reduce<Record<string, string[]>>(
@@ -82,6 +85,13 @@ export default async function SchedulePage({
       return map;
     },
     {}
+  );
+
+  const holidayByDate = Object.fromEntries(
+    holidays.map((holiday) => [
+      formatDateOnly(holiday.date),
+      { name: holiday.name, type: holiday.type as "regular" | "special" },
+    ])
   );
 
   return (
@@ -107,6 +117,7 @@ export default async function SchedulePage({
           dateHired: user.dateHired ? formatDateOnly(user.dateHired) : null,
         }))}
         scheduleByDate={scheduleByDate}
+        holidayByDate={holidayByDate}
       />
     </div>
   );

@@ -103,11 +103,13 @@ export function ScheduleCalendar({
   canManage,
   employees,
   scheduleByDate,
+  holidayByDate = {},
 }: {
   month: string;
   canManage: boolean;
   employees: Employee[];
   scheduleByDate: Record<string, string[]>;
+  holidayByDate?: Record<string, { name: string; type: "regular" | "special" }>;
 }) {
   const days = useMemo(() => buildCalendarDays(month), [month]);
   const today = formatInputDate(new Date());
@@ -427,6 +429,7 @@ export function ScheduleCalendar({
               const anniversaryEmployees = employees.filter(
                 (employee) => monthDay(employee.dateHired) === dayMonthKey
               );
+              const holiday = holidayByDate[day.key];
 
               return (
                 <button
@@ -449,6 +452,14 @@ export function ScheduleCalendar({
                       {count} staff
                     </span>
                   </div>
+                  {holiday ? (
+                    <Badge
+                      className="mb-1 h-auto w-fit justify-start whitespace-normal text-left leading-tight"
+                      variant={holiday.type === "regular" ? "default" : "secondary"}
+                    >
+                      <CalendarDays className="size-3" /> {holiday.name}
+                    </Badge>
+                  ) : null}
                   <div className="flex flex-col gap-1">
                     {assignedNames.map((name) => (
                       <span

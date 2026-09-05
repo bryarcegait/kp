@@ -48,7 +48,7 @@ export default async function MyCalendarPage({
   );
   const { start, end } = getCalendarRange(month);
 
-  const [currentUser, schedules, attendanceLogs] = await Promise.all([
+  const [currentUser, schedules, attendanceLogs, holidays] = await Promise.all([
     db.user.findUnique({
       where: { id: session.user.id },
       select: { id: true, fullName: true, isActive: true },
@@ -79,6 +79,9 @@ export default async function MyCalendarPage({
         },
       },
       orderBy: { attendanceDate: "asc" },
+    }),
+    db.holiday.findMany({
+      where: { date: { gte: start, lt: end } },
     }),
   ]);
 
@@ -115,6 +118,13 @@ export default async function MyCalendarPage({
     return map;
   }, {});
 
+  const holidayByDate = Object.fromEntries(
+    holidays.map((holiday) => [
+      formatDateOnly(holiday.date),
+      { name: holiday.name, type: holiday.type as "regular" | "special" },
+    ])
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -133,6 +143,7 @@ export default async function MyCalendarPage({
         }}
         scheduleByDate={scheduleByDate}
         attendanceByDate={attendanceByDate}
+        holidayByDate={holidayByDate}
       />
     </div>
   );

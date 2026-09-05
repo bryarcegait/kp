@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarCheck,
+  CalendarDays,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -104,11 +105,13 @@ export function UserScheduleCalendar({
   currentUser,
   scheduleByDate,
   attendanceByDate,
+  holidayByDate = {},
 }: {
   month: string;
   currentUser: ScheduledEmployee;
   scheduleByDate: Record<string, ScheduledEmployee[]>;
   attendanceByDate: Record<string, AttendanceDayLog>;
+  holidayByDate?: Record<string, { name: string; type: "regular" | "special" }>;
 }) {
   const days = useMemo(() => buildCalendarDays(month), [month]);
   const today = formatInputDate(new Date());
@@ -288,6 +291,7 @@ export function UserScheduleCalendar({
                 const attendance = attendanceByDate[day.key];
                 const lateLabel = attendance ? minutesDetailLabel(attendance.lateMinutes) : null;
                 const undertimeLabel = attendance ? minutesDetailLabel(attendance.undertimeMinutes) : null;
+                const holiday = holidayByDate[day.key];
 
                 return (
                   <button
@@ -332,6 +336,15 @@ export function UserScheduleCalendar({
                         {employees.length}
                       </div>
                     </div>
+
+                    {holiday ? (
+                      <Badge
+                        className="mt-2 h-auto w-fit justify-start whitespace-normal text-left leading-tight"
+                        variant={holiday.type === "regular" ? "default" : "secondary"}
+                      >
+                        <CalendarDays className="size-3" /> {holiday.name}
+                      </Badge>
+                    ) : null}
 
                     {isSaving ? (
                       <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
