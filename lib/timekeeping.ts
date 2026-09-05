@@ -56,6 +56,19 @@ function formatDateKey(year: number, month: number, day: number) {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+/**
+ * The day row's column labels ("1", "2", "3"...) are the column's position
+ * within the report's date range, not the calendar day-of-month — e.g. a
+ * report starting on the 28th still labels its first column "1". Offsetting
+ * from the range's start date (rather than reading the label as the day
+ * number directly) also handles the range crossing a month or year boundary.
+ */
+function dateKeyForColumn(dateRange: NonNullable<ReturnType<typeof parseDateRange>>, column: number) {
+  const date = new Date(Date.UTC(dateRange.year, dateRange.month - 1, dateRange.startDay));
+  date.setUTCDate(date.getUTCDate() + (column - 1));
+  return formatDateKey(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+}
+
 function extractTimes(value: unknown) {
   const text = cellText(value);
   const times: number[] = [];
@@ -165,7 +178,7 @@ export function parseAttendanceWorkbook(buffer: Buffer) {
       const dayText = cellText(dayRow[col]);
       if (!/^\d{1,2}$/.test(dayText)) continue;
 
-      const day = Number(dayText);
+      const column = Number(dayText);
       const rawPunches = cellText(punchRow[col]);
       const times = extractTimes(rawPunches);
       if (times.length === 0) continue;
@@ -179,7 +192,7 @@ export function parseAttendanceWorkbook(buffer: Buffer) {
       punches.push({
         biometricId,
         username: BIOMETRIC_USERNAME_BY_ID[biometricId] ?? null,
-        attendanceDate: formatDateKey(dateRange.year, dateRange.month, day),
+        attendanceDate: dateKeyForColumn(dateRange, column),
         timeInMinutes,
         timeOutMinutes,
         rawPunches,

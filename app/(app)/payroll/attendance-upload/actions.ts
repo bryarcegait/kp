@@ -105,20 +105,25 @@ export async function uploadAttendance(
     return { error: "No matching active employees were found for this upload.", details: skipped };
   }
 
-  await db.$transaction(
-    imports.map((item) =>
-      db.attendanceLog.upsert({
-        where: {
-          userId_attendanceDate: {
-            userId: item.userId,
-            attendanceDate: item.attendanceDate,
+  try {
+    await db.$transaction(
+      imports.map((item) =>
+        db.attendanceLog.upsert({
+          where: {
+            userId_attendanceDate: {
+              userId: item.userId,
+              attendanceDate: item.attendanceDate,
+            },
           },
-        },
-        update: item,
-        create: item,
-      })
-    )
-  );
+          update: item,
+          create: item,
+        })
+      )
+    );
+  } catch (error) {
+    console.error("uploadAttendance transaction failed:", error);
+    return { error: "Couldn't save the attendance logs — please try again." };
+  }
 
   revalidatePath("/payroll/attendance-upload");
   revalidatePath("/my-calendar");
