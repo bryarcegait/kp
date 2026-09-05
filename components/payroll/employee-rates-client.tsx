@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
 import {
-  saveEmployeeRates,
+  saveEmployeeRate,
   type EmployeeRatesState,
 } from "@/app/(app)/payroll/employee-rates/actions";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,67 @@ function useFormToast(state: EmployeeRatesState, isPending: boolean) {
   }, [isPending, state.error, state.success]);
 }
 
+function EmployeeRateFormRow({
+  employee,
+  canManage,
+}: {
+  employee: EmployeeRateRow;
+  canManage: boolean;
+}) {
+  const [state, action, isPending] = useActionState(saveEmployeeRate, initialState);
+  useFormToast(state, isPending);
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">{employee.fullName}</TableCell>
+      <TableCell className="text-muted-foreground">{employee.username}</TableCell>
+      <TableCell>
+        <Input
+          form={`rate-${employee.id}`}
+          name="dailyRate"
+          type="number"
+          min="0"
+          step="0.01"
+          defaultValue={employee.dailyRate}
+          disabled={!canManage || isPending}
+          className="min-w-32"
+        />
+      </TableCell>
+      <TableCell>
+        <Input
+          form={`rate-${employee.id}`}
+          name="scheduleStart"
+          type="time"
+          defaultValue={employee.scheduleStart}
+          disabled={!canManage || isPending}
+          className="min-w-32"
+        />
+      </TableCell>
+      <TableCell>
+        <Input
+          form={`rate-${employee.id}`}
+          name="scheduleEnd"
+          type="time"
+          defaultValue={employee.scheduleEnd}
+          disabled={!canManage || isPending}
+          className="min-w-32"
+        />
+      </TableCell>
+      <TableCell>
+        {canManage ? (
+          <form id={`rate-${employee.id}`} action={action}>
+            <input type="hidden" name="userId" value={employee.id} />
+            <Button type="submit" size="sm" variant="outline" disabled={isPending}>
+              <Save className="size-4" />
+              {isPending ? "Saving..." : "Save"}
+            </Button>
+          </form>
+        ) : null}
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function EmployeeRatesClient({
   employees,
   canManage,
@@ -41,11 +102,8 @@ export function EmployeeRatesClient({
   employees: EmployeeRateRow[];
   canManage: boolean;
 }) {
-  const [state, action, isPending] = useActionState(saveEmployeeRates, initialState);
-  useFormToast(state, isPending);
-
   return (
-    <form action={action} className="grid gap-4">
+    <div className="grid gap-4">
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
@@ -55,59 +113,20 @@ export function EmployeeRatesClient({
               <TableHead>Daily Rate</TableHead>
               <TableHead>Schedule Start</TableHead>
               <TableHead>Schedule End</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {employees.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell className="font-medium">
-                  <input type="hidden" name="userId" value={employee.id} />
-                  {employee.fullName}
-                </TableCell>
-                <TableCell className="text-muted-foreground">{employee.username}</TableCell>
-                <TableCell>
-                  <Input
-                    name={`dailyRate:${employee.id}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    defaultValue={employee.dailyRate}
-                    disabled={!canManage || isPending}
-                    className="min-w-32"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    name={`scheduleStart:${employee.id}`}
-                    type="time"
-                    defaultValue={employee.scheduleStart}
-                    disabled={!canManage || isPending}
-                    className="min-w-32"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    name={`scheduleEnd:${employee.id}`}
-                    type="time"
-                    defaultValue={employee.scheduleEnd}
-                    disabled={!canManage || isPending}
-                    className="min-w-32"
-                  />
-                </TableCell>
-              </TableRow>
+              <EmployeeRateFormRow key={employee.id} employee={employee} canManage={canManage} />
             ))}
           </TableBody>
         </Table>
       </div>
 
-      {canManage ? (
-        <Button type="submit" className="w-fit" disabled={isPending}>
-          <Save className="size-4" />
-          {isPending ? "Saving..." : "Save Employee Rates"}
-        </Button>
-      ) : (
+      {!canManage ? (
         <p className="text-sm text-muted-foreground">Manager access is view-only for employee rates.</p>
-      )}
-    </form>
+      ) : null}
+    </div>
   );
 }

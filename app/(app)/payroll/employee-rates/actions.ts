@@ -22,7 +22,7 @@ function parseTimeToMinutes(value: FormDataEntryValue | null, fallback: number) 
   return hour * 60 + minute;
 }
 
-export async function saveEmployeeRates(
+export async function saveEmployeeRate(
   _prevState: EmployeeRatesState,
   formData: FormData
 ): Promise<EmployeeRatesState> {
@@ -32,34 +32,36 @@ export async function saveEmployeeRates(
     return { error: "You don't have permission to update employee rates." };
   }
 
-  const userIds = formData.getAll("userId").filter((value): value is string => typeof value === "string" && value.length > 0);
-  const activeUsers = await db.user.findMany({
-    where: { id: { in: userIds }, isActive: true },
+  const userId = formData.get("userId");
+  if (typeof userId !== "string" || !userId) {
+    return { error: "Missing employee." };
+  }
+
+  const activeUser = await db.user.findUnique({
+    where: { id: userId, isActive: true },
     select: { id: true },
   });
-  const activeUserIds = new Set(activeUsers.map((user) => user.id));
+  if (!activeUser) {
+    return { error: "This employee is no longer active." };
+  }
 
-  await db.$transaction(
-    userIds
-      .filter((userId) => activeUserIds.has(userId))
-      .map((userId) =>
-        db.employeePayrollProfile.upsert({
-          where: { userId },
-          update: {
-            dailyRate: parseMoney(formData.get(`dailyRate:${userId}`)),
-            scheduleStartMinutes: parseTimeToMinutes(formData.get(`scheduleStart:${userId}`), 600),
-            scheduleEndMinutes: parseTimeToMinutes(formData.get(`scheduleEnd:${userId}`), 1200),
-          },
-          create: {
-            userId,
-            dailyRate: parseMoney(formData.get(`dailyRate:${userId}`)),
-            scheduleStartMinutes: parseTimeToMinutes(formData.get(`scheduleStart:${userId}`), 600),
-            scheduleEndMinutes: parseTimeToMinutes(formData.get(`scheduleEnd:${userId}`), 1200),
-          },
-        })
-      )
-  );
+  const data = {
+    dailyRate: parseMoney(formData.get("dailyRate")),
+    scheduleStartMinutes: parseTimeToMinutes(formData.get("scheduleStart"), 600),
+    scheduleEndMinutes: parseTimeToMinutes(formData.get("scheduleEnd"), 1200),
+  };
+
+  try {
+    await db.employeePayrollProfile.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...data },
+    });
+  } catch (error) {
+    console.error("saveEmployeeRate failed:", error);
+    return { error: "Couldn't save this employee's rate — please try again." };
+  }
 
   revalidatePath("/payroll/employee-rates");
-  return { success: "Employee rates saved." };
+  return { success: "Rate saved." };
 }

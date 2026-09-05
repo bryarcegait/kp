@@ -135,8 +135,8 @@ export function computeAttendanceMinutes(
 
 export function parseAttendanceWorkbook(buffer: Buffer) {
   const workbook = XLSX.read(buffer, { cellDates: true });
-  const sheet = workbook.Sheets["Attendance Logs"] ?? workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) throw new Error("No worksheet found in attendance file.");
+  const sheet = workbook.Sheets["Attendance Logs"];
+  if (!sheet) throw new Error("This file has no \"Attendance Logs\" sheet.");
 
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
     header: 1,
@@ -170,15 +170,18 @@ export function parseAttendanceWorkbook(buffer: Buffer) {
       const times = extractTimes(rawPunches);
       if (times.length === 0) continue;
 
-      const timeInMinutes = times.length === 1 && times[0] >= 12 * 60 ? null : times[0];
-      const timeOutMinutes = times.length === 1 && times[0] >= 12 * 60 ? times[0] : times.at(-1) ?? null;
+      // Every punch that day is one time log. The earliest is time in, the
+      // latest is time out — with only one punch logged, there's no separate
+      // "latest" to call a time out, so it's recorded as time in only.
+      const timeInMinutes = times[0];
+      const timeOutMinutes = times.length > 1 ? times.at(-1)! : null;
 
       punches.push({
         biometricId,
         username: BIOMETRIC_USERNAME_BY_ID[biometricId] ?? null,
         attendanceDate: formatDateKey(dateRange.year, dateRange.month, day),
         timeInMinutes,
-        timeOutMinutes: timeOutMinutes === timeInMinutes ? null : timeOutMinutes,
+        timeOutMinutes,
         rawPunches,
       });
     }
