@@ -62,5 +62,5 @@ export async function GET(request: NextRequest) {
 
   await createCustomerSession(customer.id);
 
-  return NextResponse.redirect(new URL("/", baseUrl));
+  return NextResponse.redirect(new URL("/?loggedIn=1", baseUrl));
 }

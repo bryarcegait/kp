@@ -462,11 +462,13 @@ export function LoggedInCardHero({
   qrDataUrl,
   onLogout,
   flipToBackSignal,
+  flipHintSignal,
 }: {
   card: CustomerLoyaltyCard;
   qrDataUrl: string;
   onLogout: () => void;
   flipToBackSignal?: number;
+  flipHintSignal?: number;
 }) {
   const points = card.loyaltyPoints;
   const cardFace = "grid h-full content-start gap-1 rounded-2xl bg-gradient-to-br from-[#fb8428] to-[#c45a23] p-5 text-[#fff4d5] shadow-lg sm:p-7";
@@ -547,7 +549,12 @@ export function LoggedInCardHero({
 
   return (
     <div className="grid gap-4">
-      <FlippableCard front={front} back={back} flipToBackSignal={flipToBackSignal} />
+      <FlippableCard
+        front={front}
+        back={back}
+        flipToBackSignal={flipToBackSignal}
+        autoFlipHintSignal={flipHintSignal}
+      />
 
       <div className="flex gap-3">
         <Link href="/order" className={`${actionButtonBase} ${actionButtonSoft}`}>

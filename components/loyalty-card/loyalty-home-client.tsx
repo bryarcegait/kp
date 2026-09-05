@@ -47,12 +47,14 @@ export function LoyaltyHomeClient({
   initialCard,
   qrDataUrl,
   initialOAuthError,
+  justLoggedIn,
   googleEnabled,
   facebookEnabled,
 }: {
   initialCard: CustomerLoyaltyCard | null;
   qrDataUrl: string | null;
   initialOAuthError: string | null;
+  justLoggedIn: boolean;
   googleEnabled: boolean;
   facebookEnabled: boolean;
 }) {
@@ -61,6 +63,7 @@ export function LoyaltyHomeClient({
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [confettiBurst, setConfettiBurst] = useState(0);
   const [flipToBackSignal, setFlipToBackSignal] = useState(0);
+  const [flipHintSignal, setFlipHintSignal] = useState(0);
   const router = useRouter();
   const hasHandledQuery = useRef(false);
   const confettiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,8 +115,15 @@ export function LoyaltyHomeClient({
     if (initialOAuthError) {
       toast.error(OAUTH_ERROR_MESSAGES[initialOAuthError] ?? "Sign-in didn't go through. Please try again.");
       window.history.replaceState(null, "", "/");
+    } else if (justLoggedIn) {
+      // OAuth login is always a full-page redirect back to "/", so there's
+      // no client-side logged-out -> logged-in transition to hang a flip
+      // hint off of — this query flag from that redirect is what tells us
+      // a fresh login (not just a returning session) just landed here.
+      setTimeout(() => setFlipHintSignal((n) => n + 1), 0);
+      window.history.replaceState(null, "", "/");
     }
-  }, [initialOAuthError]);
+  }, [initialOAuthError, justLoggedIn]);
 
   useEffect(() => {
     if (!card) return;
@@ -168,6 +178,7 @@ export function LoyaltyHomeClient({
             qrDataUrl={qrDataUrl}
             onLogout={handleLogout}
             flipToBackSignal={flipToBackSignal}
+            flipHintSignal={flipHintSignal}
           />
         ) : (
           <LoggedOutCardHero onLogin={() => setIsLoginOpen(true)} />

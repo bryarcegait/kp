@@ -1,13 +1,18 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 const SWIPE_THRESHOLD_PX = 40;
+// How long the back face stays visible before the hint auto-flips back to
+// the front — long enough to clear the 0.6s flip transition plus a beat to
+// actually notice the stamp grid.
+const HINT_FLIP_BACK_DELAY_MS = 1300;
 
 export function FlippableCard({
   front,
   back,
   flipToBackSignal,
+  autoFlipHintSignal,
 }: {
   front: ReactNode;
   back: ReactNode;
@@ -15,10 +20,16 @@ export function FlippableCard({
    * to auto-reveal newly-awarded stamps. The customer can still freely tap
    * back to the front afterward; this only nudges the initial flip. */
   flipToBackSignal?: number;
+  /** Bump this to flip to the back and then automatically flip back to the
+   * front a moment later — a one-off hint (e.g. right after login) that
+   * shows the card has a back page, without leaving the customer stranded
+   * on the back face. */
+  autoFlipHintSignal?: number;
 }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [height, setHeight] = useState<number | null>(null);
   const [prevFlipSignal, setPrevFlipSignal] = useState(flipToBackSignal);
+  const [prevHintSignal, setPrevHintSignal] = useState(autoFlipHintSignal);
 
   // React's documented pattern for adjusting state in response to a prop
   // change during render, rather than in an effect (see the same pattern
@@ -27,6 +38,16 @@ export function FlippableCard({
     setPrevFlipSignal(flipToBackSignal);
     if (flipToBackSignal) setIsFlipped(true);
   }
+  if (autoFlipHintSignal !== prevHintSignal) {
+    setPrevHintSignal(autoFlipHintSignal);
+    if (autoFlipHintSignal) setIsFlipped(true);
+  }
+
+  useEffect(() => {
+    if (!autoFlipHintSignal) return;
+    const timer = setTimeout(() => setIsFlipped(false), HINT_FLIP_BACK_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [autoFlipHintSignal]);
   // These render the same content unconstrained (visibility:hidden, out of
   // the visible flow) purely to measure natural height. Measuring the
   // visible faces directly would be circular once we apply the computed

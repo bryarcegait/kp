@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function LoyaltyHomePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ oauthError?: string }>;
+  searchParams?: Promise<{ oauthError?: string; loggedIn?: string }>;
 }) {
   const params = await searchParams;
   const card = await getCurrentCustomerCard();
@@ -21,6 +21,7 @@ export default async function LoyaltyHomePage({
         initialCard={card}
         qrDataUrl={qrDataUrl}
         initialOAuthError={params?.oauthError ?? null}
+        justLoggedIn={params?.loggedIn === "1"}
         googleEnabled={Boolean(process.env.GOOGLE_CLIENT_ID)}
         facebookEnabled={Boolean(process.env.FACEBOOK_CLIENT_ID)}
       />
